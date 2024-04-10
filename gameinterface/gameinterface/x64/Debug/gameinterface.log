@@ -1,0 +1,20 @@
+﻿  gameinterface.cpp
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244: '인수': 'T'에서 'T'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244:         with
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244:         [
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244:             T=int
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244:         ]
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244:         and
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244:         [
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244:             T=float
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,71): warning C4244:         ]
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244: '인수': 'T'에서 'T'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244:         with
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244:         [
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244:             T=int
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244:         ]
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244:         and
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244:         [
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244:             T=float
+C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\gameinterface\gameinterface.cpp(34,54): warning C4244:         ]
+  gameinterface.vcxproj -> C:\Users\choi\opensource\fighting-game-using-OpenCV\gameinterface\x64\Debug\gameinterface.exe
