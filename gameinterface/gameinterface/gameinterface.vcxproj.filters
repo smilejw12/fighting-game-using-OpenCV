@@ -35,4 +35,15 @@
   <ItemGroup>
     <Font Include="arial.ttf" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="init_screen.png">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="gamestart.png">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="face_enter.png">
+      <Filter>리소스 파일</Filter>
+    </Image>
+  </ItemGroup>
 </Project>

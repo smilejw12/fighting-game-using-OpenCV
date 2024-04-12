@@ -3,20 +3,44 @@
 
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Game Start Text");
+    // Get desktop resolution
+    sf::VideoMode desktopMode = sf::VideoMode::getDesktopMode();
 
-    sf::Font font;
-    if (!font.loadFromFile("arial.ttf")) {
-        std::cerr << "Failed to load font!" << std::endl;
+    sf::RenderWindow window;
+    window.create(sf::VideoMode(desktopMode.width, desktopMode.height), "My Game", sf::Style::Fullscreen);
+
+    // Load background image
+    sf::Texture backgroundTexture;
+    if (!backgroundTexture.loadFromFile("init_screen.png")) {
+        std::cerr << "Failed to load background image!" << std::endl;
         return 1;
     }
+    sf::Sprite backgroundSprite(backgroundTexture);
+    backgroundSprite.setScale(window.getSize().x / static_cast<float>(backgroundTexture.getSize().x),
+        window.getSize().y / static_cast<float>(backgroundTexture.getSize().y));
 
-    sf::Text text("Game Start", font, 48);
-    text.setFillColor(sf::Color::Black);
-    text.setStyle(sf::Text::Bold);
-    text.setPosition(300, 250);
+    // Load game start button image
+    sf::Texture startButtonTexture;
+    if (!startButtonTexture.loadFromFile("gamestart.png")) {
+        std::cerr << "Failed to load start button image!" << std::endl;
+        return 1;
+    }
+    sf::Sprite startButtonSprite(startButtonTexture);
+    startButtonSprite.setPosition((desktopMode.width - startButtonTexture.getSize().x) / 2, (desktopMode.height * 2) / 3);
 
-    bool gameStarted = false;
+    // Load face enter button image
+    sf::Texture faceEnterButtonTexture;
+    if (!faceEnterButtonTexture.loadFromFile("face_enter.png")) {
+        std::cerr << "Failed to load face enter button image!" << std::endl;
+        return 1;
+    }
+    sf::Sprite faceEnterButtonSprite(faceEnterButtonTexture);
+    faceEnterButtonSprite.setPosition((desktopMode.width - faceEnterButtonTexture.getSize().x) / 2, (desktopMode.height * 2) / 3 + startButtonTexture.getSize().y + 20); // 추가된 버튼이 start 버튼 아래에 위치하도록 조정
+
+    // Create black screen sprite
+    sf::RectangleShape blackScreen(sf::Vector2f(desktopMode.width, desktopMode.height));
+    blackScreen.setFillColor(sf::Color::Black);
+    bool faceEnterClicked = false;
 
     while (window.isOpen())
     {
@@ -27,27 +51,39 @@ int main()
                 window.close();
 
             // 게임이 시작되지 않은 경우에만 버튼 클릭 이벤트 처리
-            if (!gameStarted && event.type == sf::Event::MouseButtonPressed)
+            if (event.type == sf::Event::MouseButtonPressed)
             {
-                sf::FloatRect textBounds = text.getGlobalBounds();
+                // Check if the mouse click is inside the start button
+                sf::FloatRect startButtonBounds = startButtonSprite.getGlobalBounds();
                 sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-                if (textBounds.contains(mousePosition.x, mousePosition.y))
+                if (startButtonBounds.contains(mousePosition.x, mousePosition.y))
                 {
-                    std::cout << "Game started!" << std::endl;
-                    gameStarted = true;
-                    // 게임 시작에 필요한 코드를 추가하세요.
+                    std::cout << "Game started! Closing the window." << std::endl;
+                    // 게임이 시작되면 창을 닫음
+                    window.close();
+                }
+
+                // Check if the mouse click is inside the face enter button
+                sf::FloatRect faceEnterButtonBounds = faceEnterButtonSprite.getGlobalBounds();
+                if (faceEnterButtonBounds.contains(mousePosition.x, mousePosition.y))
+                {
+                    std::cout << "Face enter button clicked!" << std::endl;
+                    faceEnterClicked = true;
                 }
             }
         }
 
-        if (gameStarted) {
-            // 게임 시작 상태일 때 화면 배경을 파란색으로 설정
-            window.clear(sf::Color::Blue);
+        window.clear();
+
+        // Draw the background and buttons if the game hasn't started
+        if (!faceEnterClicked) {
+            window.draw(backgroundSprite);
+            window.draw(startButtonSprite);
+            window.draw(faceEnterButtonSprite);
         }
+        // Draw black screen if face enter button is clicked
         else {
-            // 게임이 시작되지 않은 경우 화면 배경을 흰색으로 설정하고 "게임 시작" 버튼을 그립니다.
-            window.clear(sf::Color::White);
-            window.draw(text);
+            window.draw(blackScreen);
         }
 
         window.display();
