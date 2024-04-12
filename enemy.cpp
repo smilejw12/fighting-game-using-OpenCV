@@ -9,7 +9,7 @@ int main() {
         return -1;
     }
 
-    cv::Mat frame;
+    cv::Mat frame, flipped_frame;
     cv::namedWindow("Camera", cv::WINDOW_AUTOSIZE);
 
     while (true) {
@@ -20,7 +20,9 @@ int main() {
             break;
         }
 
-        cv::imshow("Camera", frame); // 프레임을 창에 표시
+        cv::flip(frame, flipped_frame, 1); // 프레임을 좌우로 반전
+
+        cv::imshow("Camera", flipped_frame); // 반전된 프레임을 창에 표시
 
         if (cv::waitKey(10) == 27) { // 'ESC' 키를 누르면 루프에서 벗어남
             break;
