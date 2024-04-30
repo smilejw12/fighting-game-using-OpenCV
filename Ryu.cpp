@@ -10,13 +10,14 @@ public:
     int poseIndex; // 현재 포즈의 인덱스
     int Ryu_Score; // Ryu의 점수
     std::chrono::steady_clock::time_point lastAttackTime; // 마지막 공격 시간
+    bool isFireActive; // 파이어볼 활성화 상태
+    cv::Point fireballPos; // 파이어볼 위치
 
-    Ryu() : poseIndex(0), Ryu_Score(10)
+    Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false), fireballPos(cv::Point(600, 350))
     {
-        // Ryu의 포즈 이미지 로드
-        poses.push_back(cv::imread("ryu_stand_motion.png")); //류 기본 자세
-        poses.push_back(cv::imread("ryu_attack_motion.png")); //류 공격 자세
-        lastAttackTime = std::chrono::steady_clock::now(); // 초기 시간 설정
+        poses.push_back(cv::imread("ryu_stand_motion.png"));
+        poses.push_back(cv::imread("ryu_attack_motion.png"));
+        lastAttackTime = std::chrono::steady_clock::now();
     }
 
     void displayPose(cv::Mat& img)
@@ -24,23 +25,15 @@ public:
         if (!poses.empty() && !poses[poseIndex].empty())
         {
             cv::Mat resizedPose, mask;
-            cv::resize(poses[poseIndex], resizedPose, cv::Size(390, 800)); // 포즈 이미지 크기 조절
-
-            // 검은색 배경을 마스킹 (색상 범위 조정)
-            cv::inRange(resizedPose, cv::Scalar(0, 0, 0), cv::Scalar(10, 10, 10), mask); // 검은색에 가까운 색상 검출
+            cv::resize(poses[poseIndex], resizedPose, (poseIndex == 0) ? cv::Size(390, 800) : cv::Size(500, 800));
+            cv::inRange(resizedPose, cv::Scalar(0, 0, 0), cv::Scalar(10, 10, 10), mask);
             cv::Mat invMask;
-            cv::bitwise_not(mask, invMask); // 마스크 반전
-
-            // 오버레이 준비
+            cv::bitwise_not(mask, invMask);
             cv::Mat coloredPose;
-            resizedPose.copyTo(coloredPose, invMask); // 색상 보존을 위해 마스크 적용
-
-            // 오버레이 위치 계산
+            resizedPose.copyTo(coloredPose, invMask);
             cv::Rect roi(cv::Point(100, 100), coloredPose.size());
             cv::Mat targetROI = img(roi);
-            coloredPose.copyTo(targetROI, invMask); // 배경 제거된 이미지 오버레이
-
-            poseIndex = (poseIndex + 1) % poses.size(); // 다음 포즈로 이동
+            coloredPose.copyTo(targetROI, invMask);
         }
     }
 
@@ -49,14 +42,31 @@ public:
         auto now = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - lastAttackTime).count();
 
-        if (duration >= 5) // 5초마다 공격 자세로 변경
+        if (duration >= 5)
         {
-            poseIndex = 1; // 공격 자세로 변경
-            lastAttackTime = now; // 시간 업데이트
+            poseIndex = 1;
+            lastAttackTime = now;
+            isFireActive = true; // 파이어볼 활성화
         }
         else
         {
-            poseIndex = 0; // 기본 자세 유지
+            poseIndex = 0;
+            //isFireActive = false; // 파이어볼 비활성화
+        }
+    }
+
+    void displayFireball(cv::Mat& img)
+    {
+        if (isFireActive)
+        {
+            cv::circle(img, fireballPos, 50, cv::Scalar(0, 0, 255), -1); // 파이어볼로 사용할 원 그리기
+            fireballPos.x += 30; // 파이어볼의 이동 속도
+
+            // 화면을 벗어났는지 확인하고 초기 위치로 리셋, 활성화 상태 변경
+            if (fireballPos.x > img.cols) {
+                fireballPos.x = 600; // 초기 위치로 리셋
+                isFireActive = false; // 파이어볼 비활성화
+            }
         }
     }
 
@@ -66,45 +76,53 @@ public:
     }
 };
 
-int main()
-{
+int main() {
+    // 카메라 열기
     cv::VideoCapture cap(0);
-    if (!cap.isOpened())
-    {
+    if (!cap.isOpened()) {
         std::cerr << "Error: Camera could not be opened" << std::endl;
         return -1;
     }
 
+    // Ryu 객체 생성
     Ryu ryu;
-    cv::Mat frame, resized_frame, flipped_frame;
+    cv::Mat frame, flipped_frame;
+
+    // 창 생성 및 크기 설정
     cv::namedWindow("Camera", cv::WINDOW_NORMAL);
     cv::resizeWindow("Camera", 1800, 1000);
 
-    while (true)
-    {
-        cap >> frame;
-        if (frame.empty())
-        {
+    // 게임 루프
+    while (true) {
+        // 프레임 캡처
+        if (!cap.read(frame)) {
             std::cerr << "Error: No captured frame" << std::endl;
             break;
         }
 
-        cv::resize(frame, resized_frame, cv::Size(1800, 1000));
-        cv::flip(resized_frame, flipped_frame, 1);
+        // 프레임 사이즈 조정 및 뒤집기
+        cv::resize(frame, frame, cv::Size(1800, 1000));
+        cv::flip(frame, flipped_frame, 1);
 
-        ryu.updatePose(); // 포즈 업데이트
+        // 포즈 업데이트
+        ryu.updatePose();
+        // 포즈, 파이어볼, 점수 디스플레이
         ryu.displayPose(flipped_frame);
-        ryu.displayScore(flipped_frame);  // 점수 표시 호출
+        ryu.displayFireball(flipped_frame);
+        ryu.displayScore(flipped_frame);
 
+        // 결과 표시
         cv::imshow("Camera", flipped_frame);
-        if (cv::waitKey(10) == 27)
-        {
+
+        // ESC 키로 종료
+        if (cv::waitKey(10) == 27) {
             break;
         }
     }
 
+    // 자원 해제
     cap.release();
     cv::destroyAllWindows();
-
     return 0;
 }
+
