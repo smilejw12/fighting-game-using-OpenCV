@@ -22,7 +22,7 @@ int main()
 
     // 배경 이미지 로드
     sf::Texture backgroundTexture;
-    if (!backgroundTexture.loadFromFile("init_screen.png")) {
+    if (!backgroundTexture.loadFromFile("bg2.jpg")) {
         std::cerr << "Failed to load background image!" << std::endl;
         return 1;
     }

@@ -152,6 +152,9 @@
     <Font Include="arial.ttf" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="bg2.JPG" />
+    <Image Include="bg3.JPG" />
+    <Image Include="bg4.JPG" />
     <Image Include="face_enter.png" />
     <Image Include="gamestart.png" />
     <Image Include="init_screen.png" />
