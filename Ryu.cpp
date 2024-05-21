@@ -7,11 +7,26 @@
 class User {
 public:
     int User_Score; // User의 점수(체력)
-    User() : User_Score(10) {}
+    cv::Point position; // User의 위치 (가상으로 설정)
 
-void displayScore(cv::Mat& img)
-    {
+    User() : User_Score(10), position(cv::Point(1600, 350)) {} // 초기 위치 설정
+
+    void displayScore(cv::Mat& img) {
         cv::putText(img, "User:" + std::to_string(User_Score), cv::Point(1500, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
+    }
+
+    // 파이어볼이 사용자에게 도달했는지 확인
+    bool checkHit(cv::Point fireballPos) {
+        // 간단한 거리 계산으로 충돌 검사
+        double distance = cv::norm(fireballPos - position);
+        return distance < 100; // 일정 거리 이내라면 충돌로 간주
+    }
+
+    // 점수 감소
+    void decreaseScore() {
+        if (User_Score > 0) {
+            User_Score--;
+        }
     }
 };
 
@@ -126,6 +141,13 @@ int main() {
 
         // 사용자의 체력바 디스플레이
         user.displayScore(flipped_frame);
+
+        // 파이어볼이 사용자에게 닿았는지 확인하고 점수 감소
+        if (ryu.isFireActive && user.checkHit(ryu.fireballPos)) {
+            user.decreaseScore(); // 점수 감소
+            ryu.isFireActive = false; // 파이어볼 비활성화
+            ryu.fireballPos.x = 600; // 파이어볼 위치 초기화
+        }
 
 
         // 결과 표시
