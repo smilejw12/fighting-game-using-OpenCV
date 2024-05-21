@@ -4,6 +4,18 @@
 #include <string>
 #include <chrono>
 
+class User {
+public:
+    int User_Score; // User의 점수(체력)
+    User() : User_Score(10) {}
+
+void displayScore(cv::Mat& img)
+    {
+        cv::putText(img, "User:" + std::to_string(User_Score), cv::Point(1500, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
+    }
+};
+
+
 class Ryu {
 public:
     std::vector<cv::Mat> poses; // Ryu의 포즈 이미지들
@@ -60,7 +72,7 @@ public:
         if (isFireActive)
         {
             cv::circle(img, fireballPos, 50, cv::Scalar(0, 0, 255), -1); // 파이어볼로 사용할 원 그리기
-            fireballPos.x += 30; // 파이어볼의 이동 속도
+            fireballPos.x += 40; // 파이어볼의 이동 속도
 
             // 화면을 벗어났는지 확인하고 초기 위치로 리셋, 활성화 상태 변경
             if (fireballPos.x > img.cols) {
@@ -72,7 +84,7 @@ public:
 
     void displayScore(cv::Mat& img)
     {
-        cv::putText(img, "Ryu: " + std::to_string(Ryu_Score), cv::Point(10, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
+        cv::putText(img, "Ryu:" + std::to_string(Ryu_Score), cv::Point(50, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
     }
 };
 
@@ -84,8 +96,9 @@ int main() {
         return -1;
     }
 
-    // Ryu 객체 생성
+    // Ryu 객체와 User 객체 생성
     Ryu ryu;
+    User user;
     cv::Mat frame, flipped_frame;
 
     // 창 생성 및 크기 설정
@@ -111,6 +124,10 @@ int main() {
         ryu.displayFireball(flipped_frame);
         ryu.displayScore(flipped_frame);
 
+        // 사용자의 체력바 디스플레이
+        user.displayScore(flipped_frame);
+
+
         // 결과 표시
         cv::imshow("Camera", flipped_frame);
 
@@ -125,4 +142,3 @@ int main() {
     cv::destroyAllWindows();
     return 0;
 }
-
