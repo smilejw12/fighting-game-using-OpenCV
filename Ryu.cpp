@@ -153,6 +153,12 @@ int main() {
         // 결과 표시
         cv::imshow("Camera", flipped_frame);
 
+        // 체력이 0이면 게임 종료
+        if (user.User_Score == 0 || ryu.Ryu_Score == 0) {
+            std::cout << "Game Over" << std::endl;
+            break;
+        }
+
         // ESC 키로 종료
         if (cv::waitKey(10) == 27) {
             break;
