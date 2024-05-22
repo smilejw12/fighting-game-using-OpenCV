@@ -60,7 +60,7 @@ int main()
         return 1;
     }
     sf::Sprite startButtonSprite(startButtonTexture);
-    // 버튼 크기를 줄이기 (예: 70% 크기로)
+    // 버튼 크기를 줄이기 (예: 50% 크기로)
     startButtonSprite.setScale(0.7f, 0.7f);
     startButtonSprite.setPosition((windowWidth - startButtonTexture.getSize().x * 0.7f) / 2, (windowHeight * 2) / 3);
 
@@ -71,20 +71,42 @@ int main()
         return 1;
     }
     sf::Sprite faceEnterButtonSprite(faceEnterButtonTexture);
-    // 버튼 크기를 줄이기 (예: 70% 크기로)
+    // 버튼 크기를 줄이기 (예: 50% 크기로)
     faceEnterButtonSprite.setScale(0.7f, 0.7f);
     faceEnterButtonSprite.setPosition((windowWidth - faceEnterButtonTexture.getSize().x * 0.7f) / 2, (windowHeight * 2) / 3 + startButtonTexture.getSize().y * 0.7f + 20); // 시작 버튼 아래에 얼굴 입력 버튼 위치 조정
 
-    // 얼굴 등록(등록 안되어 있으면) 버튼 이미지 로드
-    sf::Texture RegisterButtonTexture;
-    if (!RegisterButtonTexture.loadFromFile("register.png")) {
+    // Player1 등록버튼
+    sf::Texture Player1ButtonTexture;
+    if (!Player1ButtonTexture.loadFromFile("player1.png")) {
         std::cerr << "Failed to load register button image!" << std::endl;
         return 1;
     }
 
-    sf::Sprite RegisterButtonSprite(RegisterButtonTexture);
-    RegisterButtonSprite.setScale(0.5f, 0.5f);
-    RegisterButtonSprite.setPosition(1650, 20); // 시작 버튼 아래에 얼굴 입력 버튼 위치 조정
+    sf::Sprite Player1ButtonSprite(Player1ButtonTexture);
+    Player1ButtonSprite.setScale(0.7f, 0.7f);
+    Player1ButtonSprite.setPosition(150, 800); // 시작 버튼 아래에 얼굴 입력 버튼 위치 조정
+
+    // Player2 등록버튼
+    sf::Texture Player2ButtonTexture;
+    if (!Player2ButtonTexture.loadFromFile("player2.png")) {
+        std::cerr << "Failed to load register button image!" << std::endl;
+        return 1;
+    }
+
+    sf::Sprite Player2ButtonSprite(Player2ButtonTexture);
+    Player2ButtonSprite.setScale(0.7f, 0.7f);
+    Player2ButtonSprite.setPosition(850, 800); // 시작 버튼 아래에 얼굴 입력 버튼 위치 조정
+
+    // Player3 등록버튼
+    sf::Texture Player3ButtonTexture;
+    if (!Player3ButtonTexture.loadFromFile("player3.png")) {
+        std::cerr << "Failed to load register button image!" << std::endl;
+        return 1;
+    }
+
+    sf::Sprite Player3ButtonSprite(Player3ButtonTexture);
+    Player3ButtonSprite.setScale(0.7f, 0.7f);
+    Player3ButtonSprite.setPosition(1500, 800); // 시작 버튼 아래에 얼굴 입력 버튼 위치 조정
 
     // 흰색 화면 스프라이트 생성
     sf::RectangleShape whiteScreen(sf::Vector2f(windowWidth, windowHeight));
@@ -182,7 +204,9 @@ int main()
                 cameraSprite.setTexture(cameraTexture);
                 
                 window.draw(cameraSprite);
-                window.draw(RegisterButtonSprite);
+                window.draw(Player1ButtonSprite);
+                window.draw(Player2ButtonSprite);
+                window.draw(Player3ButtonSprite);
             }
         }
         // 그 외에는 배경과 버튼 그리기
