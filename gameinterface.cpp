@@ -7,7 +7,7 @@
 #include <chrono>
 
 #ifdef _WIN32
-#include <windows.h> // Windows Çì´õ ÆÄÀÏ
+#include <windows.h> // Windows í—¤ë” íŒŒì¼
 #endif
 
 int main()
@@ -15,16 +15,16 @@ int main()
     const int windowWidth = 1800;
     const int windowHeight = 1000;
 
-    // SFML Ã¢ »ı¼º
+    // SFML ì°½ ìƒì„±
     sf::RenderWindow window;
 
-    // °íÁ¤µÈ Å©±â·Î Ã¢ »ı¼º
+    // ê³ ì •ëœ í¬ê¸°ë¡œ ì°½ ìƒì„±
     window.create(sf::VideoMode(windowWidth, windowHeight), "My Game", sf::Style::Default);
 
-    // À©µµ¿ì Å¸ÀÌÆ² ¹Ù º¸ÀÌ±â
+    // ìœˆë„ìš° íƒ€ì´í‹€ ë°” ë³´ì´ê¸°
     window.setMouseCursorVisible(true);
 
-    // Ä«¸Ş¶ó
+    // ì¹´ë©”ë¼
     cv::VideoCapture cap;
     cap = cv::VideoCapture(0, cv::CAP_DSHOW);
 
@@ -33,7 +33,7 @@ int main()
         return -1;
     }
 
-    // Ä«¸Ş¶óÀÇ ³Êºñ¿Í ³ôÀÌ¸¦ °íÁ¤µÈ Ã¢ Å©±â·Î ¼³Á¤
+    // ì¹´ë©”ë¼ì˜ ë„ˆë¹„ì™€ ë†’ì´ë¥¼ ê³ ì •ëœ ì°½ í¬ê¸°ë¡œ ì„¤ì •
     cap.set(cv::CAP_PROP_FRAME_WIDTH, windowWidth);
     cap.set(cv::CAP_PROP_FRAME_HEIGHT, windowHeight);
 
@@ -41,7 +41,7 @@ int main()
     sf::Texture cameraTexture;
     sf::Sprite cameraSprite;
 
-    // ¹è°æ ÀÌ¹ÌÁö ·Îµå
+    // ë°°ê²½ ì´ë¯¸ì§€ ë¡œë“œ
     sf::Texture backgroundTexture;
     if (!backgroundTexture.loadFromFile("bg2.jpg")) {
         std::cerr << "Failed to load background image!" << std::endl;
@@ -49,33 +49,33 @@ int main()
     }
     sf::Sprite backgroundSprite(backgroundTexture);
 
-    // ¹è°æ ½ºÇÁ¶óÀÌÆ®ÀÇ Å©±â¸¦ °íÁ¤µÈ Ã¢ Å©±â¿¡ ¸ÂÃß±â
+    // ë°°ê²½ ìŠ¤í”„ë¼ì´íŠ¸ì˜ í¬ê¸°ë¥¼ ê³ ì •ëœ ì°½ í¬ê¸°ì— ë§ì¶”ê¸°
     backgroundSprite.setScale(windowWidth / static_cast<float>(backgroundTexture.getSize().x),
         windowHeight / static_cast<float>(backgroundTexture.getSize().y));
 
-    // °ÔÀÓ ½ÃÀÛ ¹öÆ° ÀÌ¹ÌÁö ·Îµå
+    // ê²Œì„ ì‹œì‘ ë²„íŠ¼ ì´ë¯¸ì§€ ë¡œë“œ
     sf::Texture startButtonTexture;
     if (!startButtonTexture.loadFromFile("gamestart.png")) {
         std::cerr << "Failed to load start button image!" << std::endl;
         return 1;
     }
     sf::Sprite startButtonSprite(startButtonTexture);
-    // ¹öÆ° Å©±â¸¦ ÁÙÀÌ±â (¿¹: 50% Å©±â·Î)
+    // ë²„íŠ¼ í¬ê¸°ë¥¼ ì¤„ì´ê¸° (ì˜ˆ: 50% í¬ê¸°ë¡œ)
     startButtonSprite.setScale(0.7f, 0.7f);
     startButtonSprite.setPosition((windowWidth - startButtonTexture.getSize().x * 0.7f) / 2, (windowHeight * 2) / 3);
 
-    // ¾ó±¼ ÀÔ·Â ¹öÆ° ÀÌ¹ÌÁö ·Îµå
+    // ì–¼êµ´ ì…ë ¥ ë²„íŠ¼ ì´ë¯¸ì§€ ë¡œë“œ
     sf::Texture faceEnterButtonTexture;
     if (!faceEnterButtonTexture.loadFromFile("face_enter.png")) {
         std::cerr << "Failed to load face enter button image!" << std::endl;
         return 1;
     }
     sf::Sprite faceEnterButtonSprite(faceEnterButtonTexture);
-    // ¹öÆ° Å©±â¸¦ ÁÙÀÌ±â (¿¹: 50% Å©±â·Î)
+    // ë²„íŠ¼ í¬ê¸°ë¥¼ ì¤„ì´ê¸° (ì˜ˆ: 50% í¬ê¸°ë¡œ)
     faceEnterButtonSprite.setScale(0.7f, 0.7f);
-    faceEnterButtonSprite.setPosition((windowWidth - faceEnterButtonTexture.getSize().x * 0.7f) / 2, (windowHeight * 2) / 3 + startButtonTexture.getSize().y * 0.7f + 20); // ½ÃÀÛ ¹öÆ° ¾Æ·¡¿¡ ¾ó±¼ ÀÔ·Â ¹öÆ° À§Ä¡ Á¶Á¤
+    faceEnterButtonSprite.setPosition((windowWidth - faceEnterButtonTexture.getSize().x * 0.7f) / 2, (windowHeight * 2) / 3 + startButtonTexture.getSize().y * 0.7f + 20); // ì‹œì‘ ë²„íŠ¼ ì•„ë˜ì— ì–¼êµ´ ì…ë ¥ ë²„íŠ¼ ìœ„ì¹˜ ì¡°ì •
 
-    // ¾ó±¼ µî·Ï(µî·Ï ¾ÈµÇ¾î ÀÖÀ¸¸é) ¹öÆ° ÀÌ¹ÌÁö ·Îµå
+    // ì–¼êµ´ ë“±ë¡(ë“±ë¡ ì•ˆë˜ì–´ ìˆìœ¼ë©´) ë²„íŠ¼ ì´ë¯¸ì§€ ë¡œë“œ
     sf::Texture RegisterButtonTexture;
     if (!RegisterButtonTexture.loadFromFile("register.png")) {
         std::cerr << "Failed to load register button image!" << std::endl;
@@ -84,17 +84,17 @@ int main()
 
     sf::Sprite RegisterButtonSprite(RegisterButtonTexture);
     RegisterButtonSprite.setScale(0.5f, 0.5f);
-    RegisterButtonSprite.setPosition(1650, 20); // ½ÃÀÛ ¹öÆ° ¾Æ·¡¿¡ ¾ó±¼ ÀÔ·Â ¹öÆ° À§Ä¡ Á¶Á¤
+    RegisterButtonSprite.setPosition(1650, 20); // ì‹œì‘ ë²„íŠ¼ ì•„ë˜ì— ì–¼êµ´ ì…ë ¥ ë²„íŠ¼ ìœ„ì¹˜ ì¡°ì •
 
-    // Èò»ö È­¸é ½ºÇÁ¶óÀÌÆ® »ı¼º
+    // í°ìƒ‰ í™”ë©´ ìŠ¤í”„ë¼ì´íŠ¸ ìƒì„±
     sf::RectangleShape whiteScreen(sf::Vector2f(windowWidth, windowHeight));
     whiteScreen.setFillColor(sf::Color::White);
 
     bool startClicked = false;
     bool faceEnterClicked = false;
-    bool inGameMode = false; // °ÔÀÓ ¸ğµåÀÎÁö ¿©ºÎ
+    bool inGameMode = false; // ê²Œì„ ëª¨ë“œì¸ì§€ ì—¬ë¶€
 
-    // ÆùÆ® ·Îµå
+    // í°íŠ¸ ë¡œë“œ
     sf::Font font;
     if (!font.loadFromFile("arial.ttf")) {
         std::cerr << "Failed to load font!" << std::endl;
@@ -111,7 +111,7 @@ int main()
 
             if (!inGameMode && event.type == sf::Event::MouseButtonPressed)
             {
-                // °ÔÀÓ ½ÃÀÛ ¹öÆ° Å¬¸¯ ¿©ºÎ È®ÀÎ
+                // ê²Œì„ ì‹œì‘ ë²„íŠ¼ í´ë¦­ ì—¬ë¶€ í™•ì¸
                 sf::FloatRect startButtonBounds = startButtonSprite.getGlobalBounds();
                 sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
                 if (startButtonBounds.contains(mousePosition.x, mousePosition.y))
@@ -122,7 +122,7 @@ int main()
                     inGameMode = true;
                 }
 
-                // ¾ó±¼ ÀÔ·Â ¹öÆ° Å¬¸¯ ¿©ºÎ È®ÀÎ
+                // ì–¼êµ´ ì…ë ¥ ë²„íŠ¼ í´ë¦­ ì—¬ë¶€ í™•ì¸
                 sf::FloatRect faceEnterButtonBounds = faceEnterButtonSprite.getGlobalBounds();
                 if (faceEnterButtonBounds.contains(mousePosition.x, mousePosition.y))
                 {
@@ -133,42 +133,59 @@ int main()
                 }
             }
 
-            // ESC Å°¸¦ ´­·¶À» ¶§ °ÔÀÓ ¸ğµåÀÎ °æ¿ì¿¡¸¸ Ã³¸®
+            // ESC í‚¤ë¥¼ ëˆŒë €ì„ ë•Œ ê²Œì„ ëª¨ë“œì¸ ê²½ìš°ì—ë§Œ ì²˜ë¦¬
             if (inGameMode && event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
             {
-                // °ÔÀÓ ¸ğµå¿¡¼­ ¹ş¾î³²
+                // ê²Œì„ ëª¨ë“œì—ì„œ ë²—ì–´ë‚¨
                 inGameMode = false;
 
-                // ½ÃÀÛ ¹öÆ° Å¬¸¯ ¿©ºÎ ÃÊ±âÈ­
+                // ì‹œì‘ ë²„íŠ¼ í´ë¦­ ì—¬ë¶€ ì´ˆê¸°í™”
                 startClicked = false;
                 faceEnterClicked = false;
 
-                // À©µµ¿ì¸¦ À©µµ¿ì ¸ğµå·Î º¯°æ
+                // ìœˆë„ìš°ë¥¼ ìœˆë„ìš° ëª¨ë“œë¡œ ë³€ê²½
                 window.create(sf::VideoMode(windowWidth, windowHeight), "My Game");
                 window.setMouseCursorVisible(true);
             }
         }
 
         window.clear();
-
-        if (startClicked || faceEnterClicked)
+        if (startClicked)
         {
             cap >> frame;
 
             if (!frame.empty()) {
-                // OpenCV MatÀ» SFML Texture¿¡ º¹»ç
+                // OpenCV Matì„ SFML Textureì— ë³µì‚¬
+                cv::flip(frame, frame, 1);
                 cv::cvtColor(frame, frame, cv::COLOR_BGR2RGBA);
                 cameraTexture.create(frame.cols, frame.rows);
                 cameraTexture.update(frame.data, frame.cols, frame.rows, 0, 0);
 
-                // Texture¸¦ Sprite¿¡ ¼³Á¤ÇÏ¿© SFML Ã¢¿¡ Ç¥½Ã
+                // Textureë¥¼ Spriteì— ì„¤ì •í•˜ì—¬ SFML ì°½ì— í‘œì‹œ
+                cameraSprite.setTexture(cameraTexture);
+
+                window.draw(cameraSprite);
+            }
+        }
+        else if (faceEnterClicked)
+        {
+            cap >> frame;
+
+            if (!frame.empty()) {
+                // OpenCV Matì„ SFML Textureì— ë³µì‚¬
+                cv::flip(frame, frame, 1);
+                cv::cvtColor(frame, frame, cv::COLOR_BGR2RGBA);
+                cameraTexture.create(frame.cols, frame.rows);
+                cameraTexture.update(frame.data, frame.cols, frame.rows, 0, 0);
+
+                // Textureë¥¼ Spriteì— ì„¤ì •í•˜ì—¬ SFML ì°½ì— í‘œì‹œ
                 cameraSprite.setTexture(cameraTexture);
                 
                 window.draw(cameraSprite);
                 window.draw(RegisterButtonSprite);
             }
         }
-        // ±× ¿Ü¿¡´Â ¹è°æ°ú ¹öÆ° ±×¸®±â
+        // ê·¸ ì™¸ì—ëŠ” ë°°ê²½ê³¼ ë²„íŠ¼ ê·¸ë¦¬ê¸°
         else
         {
             window.draw(backgroundSprite);
