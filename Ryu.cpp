@@ -3,13 +3,15 @@
 #include <vector>
 #include <string>
 #include <chrono>
+#include <cstdlib>  // rand(), srand()
+#include <ctime>    // time()
 
 class User {
 public:
     int User_Score; // User의 점수(체력)
     cv::Point position; // User의 위치 (가상으로 설정)
 
-    User() : User_Score(10), position(cv::Point(1600, 350)) {} // 초기 위치 설정
+    User() : User_Score(10), position(cv::Point(1600, 900)) {} // 초기 위치 설정
 
     void displayScore(cv::Mat& img) {
         cv::putText(img, "User:" + std::to_string(User_Score), cv::Point(1500, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
@@ -39,8 +41,12 @@ public:
     std::chrono::steady_clock::time_point lastAttackTime; // 마지막 공격 시간
     bool isFireActive; // 파이어볼 활성화 상태
     cv::Point fireballPos; // 파이어볼 위치
+    cv::Point fireballPos1; // 파이어볼 위치
+    cv::Point fireballPos2; // 파이어볼 위치
+    cv::Point fireballPos3; // 파이어볼 위치
+    int randomNumber; // 랜덤 공격 패턴 편수
 
-    Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false), fireballPos(cv::Point(600, 350))
+    Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false), fireballPos1(cv::Point(600, 350)),fireballPos2(cv::Point(600, 550)),fireballPos3(cv::Point(600, 750))
     {
         poses.push_back(cv::imread("ryu_stand_motion.png"));
         poses.push_back(cv::imread("ryu_attack_motion.png"));
@@ -74,6 +80,13 @@ public:
             poseIndex = 1;
             lastAttackTime = now;
             isFireActive = true; // 파이어볼 활성화
+            randomNumber = rand() % 3 + 1;
+            if(randomNumber==1)
+                fireballPos=fireballPos1;
+            else if(randomNumber==2)
+                fireballPos=fireballPos2;
+            else if(randomNumber==3)
+                fireballPos=fireballPos3;
         }
         else
         {
@@ -104,6 +117,9 @@ public:
 };
 
 int main() {
+
+    // 시드 초기화
+    srand(time(0));
     // 카메라 열기
     cv::VideoCapture cap(0);
     if (!cap.isOpened()) {
