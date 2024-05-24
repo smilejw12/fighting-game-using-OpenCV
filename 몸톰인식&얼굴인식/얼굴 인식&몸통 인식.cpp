@@ -36,27 +36,37 @@ void recognizeFaces(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRec
 // 사람 감지를 위한 함수
 void detectPersons(Mat& frame, Net& net) {
     Mat blob;
-    blobFromImage(frame, blob, 0.007843, Size(300, 300), Scalar(127.5, 127.5, 127.5), false);
+    blobFromImage(frame, blob, 1 / 255.0, Size(416, 416), Scalar(0, 0, 0), true, false);
     net.setInput(blob);
-    Mat detections = net.forward();
-    Mat detectionMat(detections.size[2], detections.size[3], CV_32F, detections.ptr<float>());
+    vector<Mat> outs;
+    net.forward(outs, net.getUnconnectedOutLayersNames());  // 모든 출력 레이어 가져오기
 
-    for (int i = 0; i < detectionMat.rows; i++) {
-        float confidence = detectionMat.at<float>(i, 2);
+    float highestConfidence = 0.0;
+    Rect bestBox;
+    for (auto& detection : outs) {
+        for (int i = 0; i < detection.rows; i++) {
+            float* data = (float*)detection.data + (i * detection.cols);
+            Mat scores = detection.row(i).colRange(5, detection.cols);
+            Point classIdPoint;
+            double confidence;
+            minMaxLoc(scores, 0, &confidence, 0, &classIdPoint);
+            if (confidence > highestConfidence) {
+                highestConfidence = confidence;
+                int centerX = (int)(data[0] * frame.cols);
+                int centerY = (int)(data[1] * frame.rows);
+                int width = (int)(data[2] * frame.cols);
+                int height = (int)(data[3] * frame.rows);
+                int left = centerX - width / 2;
+                int top = centerY - height / 2;
 
-        if (confidence > 0.1) {  // 임계값 변경
-            int idx = static_cast<int>(detectionMat.at<float>(i, 1));
-
-            // MobileNetSSD의 클래스 인덱스 15는 "person"
-            if (idx == 15) {
-                int xLeftBottom = static_cast<int>(detectionMat.at<float>(i, 3) * frame.cols);
-                int yLeftBottom = static_cast<int>(detectionMat.at<float>(i, 4) * frame.rows);
-                int xRightTop = static_cast<int>(detectionMat.at<float>(i, 5) * frame.cols);
-                int yRightTop = static_cast<int>(detectionMat.at<float>(i, 6) * frame.rows);
-
-                rectangle(frame, Point(xLeftBottom, yLeftBottom), Point(xRightTop, yRightTop), Scalar(255, 0, 0), 2); // 파란색으로 사람 감지 박스 표시
+                bestBox = Rect(left, top, width, height);
             }
         }
+    }
+
+    // 가장 높은 신뢰도를 가진 바운딩 박스만 그리기
+    if (highestConfidence > 0.15) {  // 설정한 최소 신뢰도 임계값
+        rectangle(frame, bestBox, Scalar(0, 255, 0), 2);
     }
 }
 
@@ -66,8 +76,8 @@ int main() {
     string model_path = "C:/Users/82105/Desktop/프로젝트/fighting-game-using-OpenCV/얼굴인식/Project1/shin.yml";
 
     // DNN 모델 파일 경로
-    string prototxt = "MobileNetSSD_deploy.prototxt";
-    string caffemodel = "MobileNetSSD_deploy.caffemodel";
+    string cfg = "yolov4-tiny.cfg";
+    string weights = "yolov4-tiny.weights";
 
     CascadeClassifier face_cascade;
     if (!face_cascade.load(face_cascade_path)) {
@@ -78,11 +88,13 @@ int main() {
     Ptr<LBPHFaceRecognizer> model = LBPHFaceRecognizer::create();
     model->read(model_path);
 
-    Net net = readNetFromCaffe(prototxt, caffemodel);
+    Net net = readNetFromDarknet(cfg, weights);
     if (net.empty()) {
         cerr << "모델을 로드할 수 없습니다. 파일 경로를 확인하세요." << endl;
         return -1;
     }
+    net.setPreferableBackend(DNN_BACKEND_OPENCV);
+    net.setPreferableTarget(DNN_TARGET_OPENCL);
 
     VideoCapture capture(0);
     if (!capture.isOpened()) {
