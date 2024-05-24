@@ -1,5 +1,9 @@
 # 2021042025 신재원
 # fighting-game-using-OpenCV
+### 빌드파일 유효기간 5월 27일
+-__https://file.kiwi/2ce1b2c7#3DrerONqcz-lvEUfbyiqbw__
+
+
 ## 실시간 얼굴인식
 -__OpenCV 4.7 버전 필요(contrib포함)__
   
