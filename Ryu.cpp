@@ -201,8 +201,8 @@ int main() {
     srand(time(0));
 
     // Haar 캐스케이드 및 LBPH 모델 파일 경로
-    string face_cascade_path = "C:/Users/user/Desktop/build/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
-    string model_path = "C:/Users/user/Desktop/오픈소스전문프로젝트/player/김선우.yml";
+    string face_cascade_path = "C:/OpenCV_4.7/build/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
+    string model_path = "shin.yml";
 
     // DNN 모델 파일 경로
     string cfg = "yolov4-tiny.cfg";
@@ -238,6 +238,7 @@ int main() {
     cv::Mat frame, flipped_frame;
     // 프레임 크기 조정 (성능 향상을 위해)
     //Mat resizedFrame;
+    int frame_count = 0;
 
     // 게임 루프
     while (true) {
@@ -247,26 +248,23 @@ int main() {
         }
 
         cv::flip(frame, flipped_frame, 1);
-        //resize(flipped_frame, resizedFrame, Size(1800, 1000)); // 성능 향상을 위해 크기 축소
-        //
-        // 프레임 크기 조정 (화면 출력용)
         resize(flipped_frame, flipped_frame, Size(1800, 1000));
 
-        // 얼굴 인식
-        recognizeFaces(flipped_frame, face_cascade, model);
+        // 5프레임마다 한 번씩 recognizeFaces 함수 호출
+        if (frame_count % 10 == 0) {
+            recognizeFaces(flipped_frame, face_cascade, model);
+        }
 
-        // 사람 감지 및 플레이어 바운딩 박스 업데이트
+        // 사람 감지는 매 프레임마다 실행
         Rect playerBox = detectPersons(flipped_frame, net);
         cout << playerBox << endl;
         player.updateBoundingBox(playerBox);
 
-        // 포즈, 파이어볼, 점수 디스플레이
         ryu.updatePose();
         ryu.displayPose(flipped_frame);
         ryu.displayFireball(flipped_frame);
         ryu.displayScore(flipped_frame);
 
-        // 플레이어 체력바 및 상태 업데이트
         player.displayHealth(flipped_frame);
 
         cout << "Fireball Position: " << ryu.fireballPos << endl;
@@ -288,6 +286,8 @@ int main() {
 
         // 결과 표시
         cv::imshow("Camera", flipped_frame);
+
+        frame_count++;
 
         // 게임 종료 조건 체크
         if (player.health == 0 || ryu.Ryu_Score == 0) {
