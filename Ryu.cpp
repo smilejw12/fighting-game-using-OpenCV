@@ -36,7 +36,7 @@ void recognizeFaces(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRec
 }
 
 // 사람 감지를 위한 함수
-void detectPersons(Mat& frame, Net& net) {
+Rect detectPersons(Mat& frame, Net& net) {
     Mat blob;
     blobFromImage(frame, blob, 1 / 255.0, Size(416, 416), Scalar(0, 0, 0), true, false);
     net.setInput(blob);
@@ -66,34 +66,37 @@ void detectPersons(Mat& frame, Net& net) {
         }
     }
 
-    // 가장 높은 신뢰도를 가진 바운딩 박스만 그리기
     if (highestConfidence > 0.15) {  // 설정한 최소 신뢰도 임계값
         rectangle(frame, bestBox, Scalar(0, 255, 0), 2);
     }
+
+    return bestBox;
 }
 
-class User {
+class Player {
 public:
-    int User_Score; // User의 점수(체력)
-    cv::Point position; // User의 위치 (가상으로 설정)
+    int health;  // Player의 체력
+    Rect boundingBox;  // Player의 바운딩 박스
 
-    User() : User_Score(10), position(cv::Point(1600, 350)) {} // 초기 위치 설정
+    Player() : health(10), boundingBox(Point(1600, 350), Size(200, 400)) {} // 초기 위치와 크기 설정
 
-    void displayScore(cv::Mat& img) {
-        cv::putText(img, "User:" + std::to_string(User_Score), cv::Point(1500, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
+    void displayHealth(cv::Mat& img) {
+        cv::putText(img, "Player:" + std::to_string(health), cv::Point(1400, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
     }
 
-    // 파이어볼이 사용자에게 도달했는지 확인
+    // 파이어볼이 플레이어의 바운딩 박스에 들어왔는지 확인
     bool checkHit(cv::Point fireballPos) {
-        // 간단한 거리 계산으로 충돌 검사
-        double distance = cv::norm(fireballPos - position);
-        return distance < 100; // 일정 거리 이내라면 충돌로 간주
+        return boundingBox.contains(fireballPos);
     }
 
-    // 점수 감소
-    void decreaseScore() {
-        if (User_Score > 0) {
-            User_Score--;
+    void updateBoundingBox(const Rect& newBox) {
+        boundingBox = newBox;
+    }
+
+    // 체력 감소
+    void decreaseHealth() {
+        if (health > 0) {
+            health--;
         }
     }
 };
@@ -207,55 +210,52 @@ int main() {
 
     // Ryu 객체와 User 객체 생성
     Ryu ryu;
-    User user;
+    Player player;
     cv::Mat frame, flipped_frame;
     // 프레임 크기 조정 (성능 향상을 위해)
     Mat resizedFrame;
 
     // 게임 루프
     while (true) {
-        // 프레임 캡처
         if (!cap.read(frame)) {
             std::cerr << "Error: No captured frame" << std::endl;
             break;
         }
 
-        // 프레임 사이즈 조정 및 뒤집기
         cv::flip(frame, flipped_frame, 1);
-
         resize(flipped_frame, resizedFrame, Size(800, 450)); // 성능 향상을 위해 크기 축소
+
         // 얼굴 인식
         recognizeFaces(resizedFrame, face_cascade, model);
 
-        // 사람 감지
-        detectPersons(resizedFrame, net);
+        // 사람 감지 및 플레이어 바운딩 박스 업데이트
+        Rect playerBox = detectPersons(resizedFrame, net);
+        player.updateBoundingBox(playerBox);
 
         // 프레임 크기 조정 (화면 출력용)
         resize(resizedFrame, flipped_frame, Size(1800, 1000));
 
-        // 포즈 업데이트
-        ryu.updatePose();
         // 포즈, 파이어볼, 점수 디스플레이
+        ryu.updatePose();
         ryu.displayPose(flipped_frame);
         ryu.displayFireball(flipped_frame);
         ryu.displayScore(flipped_frame);
 
-        // 사용자의 체력바 디스플레이
-        user.displayScore(flipped_frame);
+        // 플레이어 체력바 및 상태 업데이트
+        player.displayHealth(flipped_frame);
 
-        // 파이어볼이 사용자에게 닿았는지 확인하고 점수 감소
-        if (ryu.isFireActive && user.checkHit(ryu.fireballPos)) {
-            user.decreaseScore(); // 점수 감소
-            ryu.isFireActive = false; // 파이어볼 비활성화
-            ryu.fireballPos.x = 600; // 파이어볼 위치 초기화
+        // 파이어볼이 플레이어에게 닿았는지 확인
+        if (ryu.isFireActive && player.checkHit(ryu.fireballPos)) {
+            player.decreaseHealth();  // 체력 감소
+            ryu.isFireActive = false;  // 파이어볼 비활성화
+            ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
         }
-
 
         // 결과 표시
         cv::imshow("Camera", flipped_frame);
 
-        // 체력이 0이면 게임 종료
-        if (user.User_Score == 0 || ryu.Ryu_Score == 0) {
+        // 게임 종료 조건 체크
+        if (player.health == 0 || ryu.Ryu_Score == 0) {
             std::cout << "Game Over" << std::endl;
             break;
         }
