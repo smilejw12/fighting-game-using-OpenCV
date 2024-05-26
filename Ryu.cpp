@@ -3,15 +3,81 @@
 #include <vector>
 #include <string>
 #include <chrono>
-#include <cstdlib>  // rand(), srand()
-#include <ctime>    // time()
+#include <opencv2/face.hpp>
+#include <opencv2/dnn.hpp>
+#include <filesystem>
+
+using namespace cv;
+using namespace cv::face;
+using namespace cv::dnn;
+using namespace std;
+using namespace std::filesystem;
+
+// 얼굴 인식을 위한 함수
+void recognizeFaces(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model) {
+    Mat gray;
+    cvtColor(frame, gray, COLOR_BGR2GRAY);
+    vector<Rect> faces;
+    face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+
+    for (const auto& face : faces) {
+        Mat faceROI = gray(face);
+        int label = -1;
+        double confidence = 0;
+        model->predict(faceROI, label, confidence);
+
+        string text = (label == 0 && confidence < 80) ? "Player1" : "Unknown";
+
+        Point pt1(face.x, face.y);
+        Point pt2(face.x + face.width, face.y + face.height);
+        rectangle(frame, pt1, pt2, Scalar(0, 255, 0), 2);
+        putText(frame, text, Point(face.x, face.y - 5), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 255, 0), 2);
+    }
+}
+
+// 사람 감지를 위한 함수
+void detectPersons(Mat& frame, Net& net) {
+    Mat blob;
+    blobFromImage(frame, blob, 1 / 255.0, Size(416, 416), Scalar(0, 0, 0), true, false);
+    net.setInput(blob);
+    vector<Mat> outs;
+    net.forward(outs, net.getUnconnectedOutLayersNames());  // 모든 출력 레이어 가져오기
+
+    float highestConfidence = 0.0;
+    Rect bestBox;
+    for (auto& detection : outs) {
+        for (int i = 0; i < detection.rows; i++) {
+            float* data = (float*)detection.data + (i * detection.cols);
+            Mat scores = detection.row(i).colRange(5, detection.cols);
+            Point classIdPoint;
+            double confidence;
+            minMaxLoc(scores, 0, &confidence, 0, &classIdPoint);
+            if (confidence > highestConfidence) {
+                highestConfidence = confidence;
+                int centerX = (int)(data[0] * frame.cols);
+                int centerY = (int)(data[1] * frame.rows);
+                int width = (int)(data[2] * frame.cols);
+                int height = (int)(data[3] * frame.rows);
+                int left = centerX - width / 2;
+                int top = centerY - height / 2;
+
+                bestBox = Rect(left, top, width, height);
+            }
+        }
+    }
+
+    // 가장 높은 신뢰도를 가진 바운딩 박스만 그리기
+    if (highestConfidence > 0.15) {  // 설정한 최소 신뢰도 임계값
+        rectangle(frame, bestBox, Scalar(0, 255, 0), 2);
+    }
+}
 
 class User {
 public:
     int User_Score; // User의 점수(체력)
     cv::Point position; // User의 위치 (가상으로 설정)
 
-    User() : User_Score(10), position(cv::Point(1600, 900)) {} // 초기 위치 설정
+    User() : User_Score(10), position(cv::Point(1600, 350)) {} // 초기 위치 설정
 
     void displayScore(cv::Mat& img) {
         cv::putText(img, "User:" + std::to_string(User_Score), cv::Point(1500, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
@@ -41,12 +107,8 @@ public:
     std::chrono::steady_clock::time_point lastAttackTime; // 마지막 공격 시간
     bool isFireActive; // 파이어볼 활성화 상태
     cv::Point fireballPos; // 파이어볼 위치
-    cv::Point fireballPos1; // 파이어볼 위치
-    cv::Point fireballPos2; // 파이어볼 위치
-    cv::Point fireballPos3; // 파이어볼 위치
-    int randomNumber; // 랜덤 공격 패턴 편수
 
-    Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false), fireballPos1(cv::Point(600, 350)),fireballPos2(cv::Point(600, 550)),fireballPos3(cv::Point(600, 750))
+    Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false), fireballPos(cv::Point(600, 350))
     {
         poses.push_back(cv::imread("ryu_stand_motion.png"));
         poses.push_back(cv::imread("ryu_attack_motion.png"));
@@ -80,13 +142,6 @@ public:
             poseIndex = 1;
             lastAttackTime = now;
             isFireActive = true; // 파이어볼 활성화
-            randomNumber = rand() % 3 + 1;
-            if(randomNumber==1)
-                fireballPos=fireballPos1;
-            else if(randomNumber==2)
-                fireballPos=fireballPos2;
-            else if(randomNumber==3)
-                fireballPos=fireballPos3;
         }
         else
         {
@@ -118,8 +173,31 @@ public:
 
 int main() {
 
-    // 시드 초기화
-    srand(time(0));
+    // Haar 캐스케이드 및 LBPH 모델 파일 경로
+    string face_cascade_path = "C:/Users/user/Desktop/build/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
+    string model_path = "C:/Users/user/Desktop/오픈소스전문프로젝트/player/김선우.yml";
+
+    // DNN 모델 파일 경로
+    string cfg = "yolov4-tiny.cfg";
+    string weights = "yolov4-tiny.weights";
+
+    CascadeClassifier face_cascade;
+    if (!face_cascade.load(face_cascade_path)) {
+        cerr << "Error loading face cascade\n";
+        return -1;
+    }
+
+    Ptr<LBPHFaceRecognizer> model = LBPHFaceRecognizer::create();
+    model->read(model_path);
+
+    Net net = readNetFromDarknet(cfg, weights);
+    if (net.empty()) {
+        cerr << "모델을 로드할 수 없습니다. 파일 경로를 확인하세요." << endl;
+        return -1;
+    }
+    net.setPreferableBackend(DNN_BACKEND_OPENCV);
+    net.setPreferableTarget(DNN_TARGET_OPENCL);
+
     // 카메라 열기
     cv::VideoCapture cap(0);
     if (!cap.isOpened()) {
@@ -131,10 +209,8 @@ int main() {
     Ryu ryu;
     User user;
     cv::Mat frame, flipped_frame;
-
-    // 창 생성 및 크기 설정
-    cv::namedWindow("Camera", cv::WINDOW_NORMAL);
-    cv::resizeWindow("Camera", 1800, 1000);
+    // 프레임 크기 조정 (성능 향상을 위해)
+    Mat resizedFrame;
 
     // 게임 루프
     while (true) {
@@ -145,8 +221,17 @@ int main() {
         }
 
         // 프레임 사이즈 조정 및 뒤집기
-        cv::resize(frame, frame, cv::Size(1800, 1000));
         cv::flip(frame, flipped_frame, 1);
+
+        resize(flipped_frame, resizedFrame, Size(800, 450)); // 성능 향상을 위해 크기 축소
+        // 얼굴 인식
+        recognizeFaces(resizedFrame, face_cascade, model);
+
+        // 사람 감지
+        detectPersons(resizedFrame, net);
+
+        // 프레임 크기 조정 (화면 출력용)
+        resize(resizedFrame, flipped_frame, Size(1800, 1000));
 
         // 포즈 업데이트
         ryu.updatePose();
