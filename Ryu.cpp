@@ -6,6 +6,8 @@
 #include <opencv2/face.hpp>
 #include <opencv2/dnn.hpp>
 #include <filesystem>
+#include <cstdlib>  // rand(), srand()
+#include <ctime>    // time()
 
 using namespace cv;
 using namespace cv::face;
@@ -73,12 +75,18 @@ Rect detectPersons(Mat& frame, Net& net) {
     return bestBox;
 }
 
+bool checkCollision(const Rect& rect1, const Rect& rect2) {
+    int x_overlap = max(0, min(rect1.x + rect1.width, rect2.x + rect2.width) - max(rect1.x, rect2.x));
+    int y_overlap = max(0, min(rect1.y + rect1.height, rect2.y + rect2.height) - max(rect1.y, rect2.y));
+    return x_overlap > 0 && y_overlap > 0;
+}
+
 class Player {
 public:
     int health;  // Player의 체력
     Rect boundingBox;  // Player의 바운딩 박스
 
-    Player() : health(10), boundingBox(Point(1600, 350), Size(200, 400)) {} // 초기 위치와 크기 설정
+    Player() : health(10), boundingBox(Point(0, 0), Size(0, 0)) {} // 초기 위치와 크기 설정
 
     void displayHealth(cv::Mat& img) {
         cv::putText(img, "Player:" + std::to_string(health), cv::Point(1400, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
@@ -110,8 +118,14 @@ public:
     std::chrono::steady_clock::time_point lastAttackTime; // 마지막 공격 시간
     bool isFireActive; // 파이어볼 활성화 상태
     cv::Point fireballPos; // 파이어볼 위치
+    cv::Point fireballPos1; // 파이어볼 위치
+    cv::Point fireballPos2; // 파이어볼 위치
+    cv::Point fireballPos3; // 파이어볼 위치
+    int randomNumber; // 랜덤 공격 패턴 편수
+    Rect boundingBox; // Ryu의 바운딩 박스 추가
 
-    Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false), fireballPos(cv::Point(600, 350))
+
+    Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false), fireballPos1(cv::Point(600, 350)), fireballPos2(cv::Point(600, 550)), fireballPos3(cv::Point(600, 750)), boundingBox(Point(100, 100), Size(390, 800))
     {
         poses.push_back(cv::imread("ryu_stand_motion.png"));
         poses.push_back(cv::imread("ryu_attack_motion.png"));
@@ -145,6 +159,13 @@ public:
             poseIndex = 1;
             lastAttackTime = now;
             isFireActive = true; // 파이어볼 활성화
+            randomNumber = rand() % 3 + 1;
+            if (randomNumber == 1)
+                fireballPos = fireballPos1;
+            else if (randomNumber == 2)
+                fireballPos = fireballPos2;
+            else if (randomNumber == 3)
+                fireballPos = fireballPos3;
         }
         else
         {
@@ -158,7 +179,7 @@ public:
         if (isFireActive)
         {
             cv::circle(img, fireballPos, 50, cv::Scalar(0, 0, 255), -1); // 파이어볼로 사용할 원 그리기
-            fireballPos.x += 40; // 파이어볼의 이동 속도
+            fireballPos.x += 80; // 파이어볼의 이동 속도
 
             // 화면을 벗어났는지 확인하고 초기 위치로 리셋, 활성화 상태 변경
             if (fireballPos.x > img.cols) {
@@ -175,6 +196,9 @@ public:
 };
 
 int main() {
+
+    // 시드 초기화
+    srand(time(0));
 
     // Haar 캐스케이드 및 LBPH 모델 파일 경로
     string face_cascade_path = "C:/Users/user/Desktop/build/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
@@ -213,7 +237,7 @@ int main() {
     Player player;
     cv::Mat frame, flipped_frame;
     // 프레임 크기 조정 (성능 향상을 위해)
-    Mat resizedFrame;
+    //Mat resizedFrame;
 
     // 게임 루프
     while (true) {
@@ -223,17 +247,18 @@ int main() {
         }
 
         cv::flip(frame, flipped_frame, 1);
-        resize(flipped_frame, resizedFrame, Size(800, 450)); // 성능 향상을 위해 크기 축소
+        //resize(flipped_frame, resizedFrame, Size(1800, 1000)); // 성능 향상을 위해 크기 축소
+        //
+        // 프레임 크기 조정 (화면 출력용)
+        resize(flipped_frame, flipped_frame, Size(1800, 1000));
 
         // 얼굴 인식
-        recognizeFaces(resizedFrame, face_cascade, model);
+        recognizeFaces(flipped_frame, face_cascade, model);
 
         // 사람 감지 및 플레이어 바운딩 박스 업데이트
-        Rect playerBox = detectPersons(resizedFrame, net);
+        Rect playerBox = detectPersons(flipped_frame, net);
+        cout << playerBox << endl;
         player.updateBoundingBox(playerBox);
-
-        // 프레임 크기 조정 (화면 출력용)
-        resize(resizedFrame, flipped_frame, Size(1800, 1000));
 
         // 포즈, 파이어볼, 점수 디스플레이
         ryu.updatePose();
@@ -244,11 +269,21 @@ int main() {
         // 플레이어 체력바 및 상태 업데이트
         player.displayHealth(flipped_frame);
 
+        cout << "Fireball Position: " << ryu.fireballPos << endl;
+        cout << "Player Bounding Box: " << player.boundingBox << endl;
+
         // 파이어볼이 플레이어에게 닿았는지 확인
         if (ryu.isFireActive && player.checkHit(ryu.fireballPos)) {
+            cout << "player hit! Remaining Health: " << player.health << endl;
             player.decreaseHealth();  // 체력 감소
             ryu.isFireActive = false;  // 파이어볼 비활성화
             ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
+        }
+
+        // 게임 루프 내에서
+        if (checkCollision(player.boundingBox, ryu.boundingBox)) {
+            ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
+            cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
         }
 
         // 결과 표시
