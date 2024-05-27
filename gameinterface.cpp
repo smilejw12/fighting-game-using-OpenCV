@@ -2,12 +2,15 @@
 #include <SFML/Window.hpp>
 #include <iostream>
 #include <opencv2/opencv.hpp>
-#include <opencv2/face.hpp>
-#include <opencv2/dnn.hpp>
-#include <filesystem>
+#include <iostream>
 #include <vector>
 #include <string>
 #include <chrono>
+#include <opencv2/face.hpp>
+#include <opencv2/dnn.hpp>
+#include <filesystem>
+#include <cstdlib>  // rand(), srand()
+#include <ctime>    // time()
 
 #ifdef _WIN32
 #include <windows.h> // Windows 헤더 파일
@@ -19,14 +22,30 @@ using namespace cv::dnn;
 using namespace std;
 using namespace std::filesystem;
 
+
 // 얼굴 인식을 위한 함수
-void recognizeFaces(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model) {
+void recognizeFacesAndDrawRectangles(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model, sf::RenderWindow& window) {
     Mat gray;
     cvtColor(frame, gray, COLOR_BGR2GRAY);
     vector<Rect> faces;
     face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
     for (const auto& face : faces) {
+        // 테두리 좌표 계산
+        int x = face.x;
+        int y = face.y;
+        int width = face.width;
+        int height = face.height;
+
+        // SFML의 RectangleShape로 테두리 그리기
+        sf::RectangleShape border(sf::Vector2f(width, height));
+        border.setPosition(x, y);
+        border.setOutlineThickness(2);
+        border.setOutlineColor(sf::Color::Green);
+        border.setFillColor(sf::Color::Transparent); // 안을 비워줌으로써 테두리만 보이도록 함
+        window.draw(border);
+
+        // 얼굴 영역에서 예측
         Mat faceROI = gray(face);
         int label = -1;
         double confidence = 0;
@@ -34,42 +53,221 @@ void recognizeFaces(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRec
 
         string text = (label == 0 && confidence < 80) ? "Player1" : "Unknown";
 
-        Point pt1(face.x, face.y);
-        Point pt2(face.x + face.width, face.y + face.height);
-        rectangle(frame, pt1, pt2, Scalar(0, 255, 0), 2);
-        putText(frame, text, Point(face.x, face.y - 5), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 255, 0), 2);
+        // 텍스트 표시
+        sf::Font font;
+        if (!font.loadFromFile("arial.ttf")) {
+            return;
+        }
+
+        sf::Text textObj(text, font, 20);
+        textObj.setPosition(x, y - 20);
+        textObj.setFillColor(sf::Color::Green);
+        window.draw(textObj);
     }
 }
 
 // 사람 감지를 위한 함수
-void detectPersons(Mat& frame, Net& net) {
+Rect detectPersons(Mat& frame, Net& net) {
     Mat blob;
-    blobFromImage(frame, blob, 0.007843, Size(300, 300), Scalar(127.5, 127.5, 127.5), false);
+    blobFromImage(frame, blob, 1 / 255.0, Size(416, 416), Scalar(0, 0, 0), true, false);
     net.setInput(blob);
-    Mat detections = net.forward();
-    Mat detectionMat(detections.size[2], detections.size[3], CV_32F, detections.ptr<float>());
+    vector<Mat> outs;
+    net.forward(outs, net.getUnconnectedOutLayersNames());  // 모든 출력 레이어 가져오기
 
-    for (int i = 0; i < detectionMat.rows; i++) {
-        float confidence = detectionMat.at<float>(i, 2);
+    float highestConfidence = 0.0;
+    Rect bestBox;
+    for (auto& detection : outs) {
+        for (int i = 0; i < detection.rows; i++) {
+            float* data = (float*)detection.data + (i * detection.cols);
+            Mat scores = detection.row(i).colRange(5, detection.cols);
+            Point classIdPoint;
+            double confidence;
+            minMaxLoc(scores, 0, &confidence, 0, &classIdPoint);
+            if (confidence > highestConfidence) {
+                highestConfidence = confidence;
+                int centerX = (int)(data[0] * frame.cols);
+                int centerY = (int)(data[1] * frame.rows);
+                int width = (int)(data[2] * frame.cols);
+                int height = (int)(data[3] * frame.rows);
+                int left = centerX - width / 2;
+                int top = centerY - height / 2;
 
-        if (confidence > 0.1) {  // 임계값 변경
-            int idx = static_cast<int>(detectionMat.at<float>(i, 1));
-
-            // MobileNetSSD의 클래스 인덱스 15는 "person"
-            if (idx == 15) {
-                int xLeftBottom = static_cast<int>(detectionMat.at<float>(i, 3) * frame.cols);
-                int yLeftBottom = static_cast<int>(detectionMat.at<float>(i, 4) * frame.rows);
-                int xRightTop = static_cast<int>(detectionMat.at<float>(i, 5) * frame.cols);
-                int yRightTop = static_cast<int>(detectionMat.at<float>(i, 6) * frame.rows);
-
-                rectangle(frame, Point(xLeftBottom, yLeftBottom), Point(xRightTop, yRightTop), Scalar(255, 0, 0), 2); // 파란색으로 사람 감지 박스 표시
+                bestBox = Rect(left, top, width, height);
             }
         }
     }
+
+    if (highestConfidence > 0.15) {  // 설정한 최소 신뢰도 임계값
+        rectangle(frame, bestBox, Scalar(0, 255, 0), 2);
+    }
+
+    return bestBox;
 }
 
+bool checkCollision(const Rect& rect1, const Rect& rect2) {
+    int x_overlap = max(0, min(rect1.x + rect1.width, rect2.x + rect2.width) - max(rect1.x, rect2.x));
+    int y_overlap = max(0, min(rect1.y + rect1.height, rect2.y + rect2.height) - max(rect1.y, rect2.y));
+    return x_overlap > 0 && y_overlap > 0;
+}
+
+class Player {
+public:
+    int health;  // Player의 체력
+    Rect boundingBox;  // Player의 바운딩 박스
+
+    Player() : health(10), boundingBox(Point(0, 0), Size(0, 0)) {} // 초기 위치와 크기 설정
+
+    void displayHealth(cv::Mat& img) {
+        cv::putText(img, "Player:" + std::to_string(health), cv::Point(1400, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
+    }
+
+    // 파이어볼이 플레이어의 바운딩 박스에 들어왔는지 확인
+    bool checkHit(cv::Point fireballPos) {
+        return boundingBox.contains(fireballPos);
+    }
+
+    void updateBoundingBox(const Rect& newBox) {
+        boundingBox = newBox;
+    }
+
+    // 체력 감소
+    void decreaseHealth() {
+        if (health > 0) {
+            health--;
+        }
+    }
+};
+
+// 이미지를 불러와 크기를 조정하여 SFML 텍스처로 반환
+sf::Texture loadTextureAndResize(const std::string& imagePath, int width, int height) {
+    // SFML 이미지 불러오기
+    sf::Image image;
+    if (!image.loadFromFile(imagePath)) {
+        // 이미지를 불러오지 못한 경우 빈 텍스처 반환
+        return sf::Texture();
+    }
+
+    // 이미지 크기 조정
+    sf::Image resizedImage;
+    resizedImage.create(width, height);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int originalX = x * image.getSize().x / width;
+            int originalY = y * image.getSize().y / height;
+            resizedImage.setPixel(x, y, image.getPixel(originalX, originalY));
+        }
+    }
+
+    // SFML 이미지를 텍스처로 변환하여 반환
+    sf::Texture texture;
+    texture.loadFromImage(resizedImage);
+    return texture;
+}
+
+class Ryu {
+public:
+    std::vector<sf::Texture> poses; // Ryu의 포즈 이미지들
+    int poseIndex; // 현재 포즈의 인덱스
+    int Ryu_Score; // Ryu의 점수
+    std::chrono::steady_clock::time_point lastAttackTime; // 마지막 공격 시간
+    bool isFireActive; // 파이어볼 활성화 상태
+    sf::Vector2f fireballPos; // 파이어볼 위치
+    sf::Vector2f fireballPos1; // 파이어볼 위치
+    sf::Vector2f fireballPos2; // 파이어볼 위치
+    sf::Vector2f fireballPos3; // 파이어볼 위치
+    int randomNumber; // 랜덤 공격 패턴 편수
+    std::vector<sf::RectangleShape> boundingBoxes; // Ryu의 바운딩 박스 추가
+
+    Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false),
+        fireballPos1(sf::Vector2f(350, 400)), fireballPos2(sf::Vector2f(550, 400)),
+        fireballPos3(sf::Vector2f(750, 400))
+    {
+        sf::Texture pose1Texture = loadTextureAndResize("ryu_stand_motion.png", 390, 800);
+        sf::Texture pose2Texture = loadTextureAndResize("ryu_attack_motion.png", 500, 800);
+
+        poses.push_back(pose1Texture);
+        poses.push_back(pose2Texture);
+
+        lastAttackTime = std::chrono::steady_clock::now();
+
+        sf::RectangleShape boundingBox1(sf::Vector2f(390, 800));
+        boundingBox1.setPosition(sf::Vector2f(100, 100));
+        boundingBoxes.push_back(boundingBox1);
+
+        sf::RectangleShape boundingBox2(sf::Vector2f(500, 800));
+        boundingBox2.setPosition(sf::Vector2f(100, 100));
+        boundingBoxes.push_back(boundingBox2);
+    }
+
+    void displayPose(sf::RenderWindow& window)
+    {
+        if (!poses.empty())
+        {
+            sf::Sprite sprite(poses[poseIndex]);
+            sprite.setPosition(100, 100); // 이미지 위치 조정
+            window.draw(sprite);
+        }
+    }
+
+    void updatePose()
+    {
+        auto now = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - lastAttackTime).count();
+
+        if (duration >= 5)
+        {
+            poseIndex = 1;
+            lastAttackTime = now;
+            isFireActive = true; // 파이어볼 활성화
+            randomNumber = rand() % 3 + 1;
+            if (randomNumber == 1)
+                fireballPos = fireballPos1;
+            else if (randomNumber == 2)
+                fireballPos = fireballPos2;
+            else if (randomNumber == 3)
+                fireballPos = fireballPos3;
+        }
+        else
+        {
+            poseIndex = 0;
+            //isFireActive = false; // 파이어볼 비활성화
+        }
+    }
+
+    void displayFireball(sf::RenderWindow& window)
+    {
+        if (isFireActive)
+        {
+            sf::CircleShape circle(50);
+            circle.setFillColor(sf::Color(0, 0, 255));
+            circle.setPosition(fireballPos);
+            window.draw(circle);
+            fireballPos.x += 80; // 파이어볼의 이동 속도
+
+            // 화면을 벗어났는지 확인하고 초기 위치로 리셋, 활성화 상태 변경
+            if (fireballPos.x > window.getSize().x) {
+                fireballPos.x = 600; // 초기 위치로 리셋
+                isFireActive = false; // 파이어볼 비활성화
+            }
+        }
+    }
+
+    void displayScore(sf::RenderWindow& window)
+    {
+        sf::Font font;
+        if (!font.loadFromFile("arial.ttf")) {
+            return;
+        }
+        sf::Text text("Ryu:" + std::to_string(Ryu_Score), font, 50);
+        text.setPosition(50, 50);
+        text.setFillColor(sf::Color(0, 0, 255));
+        window.draw(text);
+    }
+};
+
+
 // 웹캠으로부터 얼굴을 캡처하여 저장하는 함수
-void captureFaces(const string& cascadePath, const string& outputFolder) {
+void captureFaces(const string& cascadePath, const string& outputFolder, VideoCapture& cap) {
     CascadeClassifier face_cascade;
     if (!face_cascade.load(cascadePath)) {
         cerr << "Error loading face cascade\n";
@@ -77,12 +275,12 @@ void captureFaces(const string& cascadePath, const string& outputFolder) {
     }
 
     // 카메라 열기
-    VideoCapture cap;
-    cap = cv::VideoCapture(-1, CAP_DSHOW);
+    //VideoCapture cap;
+    //cap = cv::VideoCapture(0, CAP_DSHOW);
 
-    if (!cap.isOpened()) {
-        std::cerr << "Error: Camera could not be opened" << std::endl;
-    }
+    //if (!cap.isOpened()) {
+    //    std::cerr << "Error: Camera could not be opened" << std::endl;
+    //}
 
     Mat frame, gray;
     vector<Rect> faces;
@@ -105,11 +303,9 @@ void captureFaces(const string& cascadePath, const string& outputFolder) {
             }
         }
 
-        char c = (char)waitKey(10);
-        if (c == 27 || img_counter >= 100) break; // 30개의 얼굴 또는 Esc 키로 종료
+        if (img_counter >= 100) break; // 100개의 얼굴 종료
     }
-    cap.release();
-    destroyAllWindows();
+
 }
 
 // 폴더에서 이미지를 읽어 데이터셋을 구성하는 함수
@@ -142,7 +338,7 @@ void trainAndSaveModel(const string& dataFolder, const string& modelPath) {
     cout << "모델의 이름을 다음과 같이 저장합니다 :  " << modelPath << endl;
 }
 
-void enrolledface(string modelName) {
+void enrolledface(string modelName, VideoCapture& cap) {
     //model
     string cascadePath = "C:/opencv/etc/haarcascades/haarcascade_frontalface_alt.xml";
     //model 저장 주소
@@ -154,7 +350,7 @@ void enrolledface(string modelName) {
 
     // 얼굴 캡처
     cout << "사용자 얼굴 캡처중..." << endl;
-    captureFaces(cascadePath, outputFolder);
+    captureFaces(cascadePath, outputFolder, cap);
     cout << "Face capture complete. Faces saved to " << outputFolder << endl;
 
     // 모델 학습 및 저장
@@ -164,7 +360,8 @@ void enrolledface(string modelName) {
     cout << "등록 완료" << endl;
 }
 
-void draw_playercheck(string modelName) {
+
+void draw_playercheck(string modelName, sf::RenderWindow& window) {
     string face_cascade_path = "C:/opencv/etc/haarcascades/haarcascade_frontalface_alt.xml";
     string model_path = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/" + modelName + ".yml";
 
@@ -205,7 +402,7 @@ void draw_playercheck(string modelName) {
         resize(frame, resizedFrame, Size(900, 500)); // 성능 향상을 위해 크기 축소
 
         // 얼굴 인식
-        recognizeFaces(resizedFrame, face_cascade, model);
+        recognizeFacesAndDrawRectangles(frame, face_cascade, model, window);
 
         // 사람 감지
         detectPersons(resizedFrame, net);
@@ -223,6 +420,10 @@ void draw_playercheck(string modelName) {
 
 int main()
 {
+    #ifdef _WIN32
+        ShowWindow(GetConsoleWindow(), SW_HIDE); // 콘솔창 숨기기
+    #endif
+
     const int windowWidth = 1800;
     const int windowHeight = 1000;
 
@@ -232,6 +433,9 @@ int main()
     // DNN 모델 파일 경로
     string prototxt = "MobileNetSSD_deploy.prototxt";
     string caffemodel = "MobileNetSSD_deploy.caffemodel";
+
+    string cfg = "yolov4-tiny.cfg";
+    string weights = "yolov4-tiny.weights";
 
     CascadeClassifier face_cascade;
     if (!face_cascade.load(face_cascade_path)) {
@@ -246,11 +450,15 @@ int main()
         cerr << "모델을 로드할 수 없습니다. 파일 경로를 확인하세요." << endl;
     }
 
+    net.setPreferableBackend(DNN_BACKEND_OPENCV);
+    net.setPreferableTarget(DNN_TARGET_OPENCL);
+
+
     // SFML 창 생성
     sf::RenderWindow window;
 
     // 고정된 크기로 창 생성
-    window.create(sf::VideoMode(windowWidth, windowHeight), "My Game", sf::Style::Default);
+    window.create(sf::VideoMode(windowWidth, windowHeight), "Gashindong fire fist", sf::Style::Default);
 
     // 윈도우 타이틀 바 보이기
     window.setMouseCursorVisible(true);
@@ -271,6 +479,9 @@ int main()
     cv::Mat frame;
     sf::Texture cameraTexture;
     sf::Sprite cameraSprite;
+
+
+
 
     // 배경 이미지 로드
     sf::Texture backgroundTexture;
@@ -348,8 +559,11 @@ int main()
     bool initgameMode = false; // 게임 모드인지 여부
     bool faceenterMode = false;
     bool p1 = false, p2 = false, p3 = false;
-
+    int frame_count = 0;
     string modelPath = "";
+
+    Ryu ryu;
+    Player player;
 
 
     // 폰트 로드
@@ -430,15 +644,19 @@ int main()
                 // Texture를 Sprite에 설정하여 SFML 창에 표시
                 cameraSprite.setTexture(cameraTexture);
 
-                // 프레임 크기 조정 (성능 향상을 위해)
-                cv::Mat resizedFrame;
-                cv::resize(frame, resizedFrame, cv::Size(900, 500)); // 성능 향상을 위해 크기 축소
-
-                // 얼굴 인식
-                recognizeFaces(resizedFrame, face_cascade, model);
-
-                // SFML 창에 카메라 프레임 표시
                 window.draw(cameraSprite);
+
+                // 5프레임마다 한 번씩 recognizeFaces 함수 호출
+                if (frame_count % 10 == 0) {
+                    recognizeFacesAndDrawRectangles(frame, face_cascade, model, window);
+                }
+                
+                ryu.updatePose();
+                ryu.displayPose(window);
+                ryu.displayFireball(window);
+                ryu.displayScore(window);
+
+                frame_count++;
             }
         }
         else if (faceEnterClicked)
@@ -460,48 +678,37 @@ int main()
                 window.draw(Player1ButtonSprite);
                 window.draw(Player2ButtonSprite);
                 window.draw(Player3ButtonSprite);
-                if (faceenterMode && event.type == sf::Event::MouseButtonPressed) // faceEnterClicked가 false일 때만 Player2ButtonBounds의 클릭 여부 확인
-                {
 
-                    // Player1 button 클릭 확인
+                if (event.type == sf::Event::MouseButtonPressed) {
                     sf::FloatRect Player1ButtonBounds = Player1ButtonSprite.getGlobalBounds();
                     sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-                    if (Player1ButtonBounds.contains(mousePosition.x, mousePosition.y) && p1 == false)
-                    {
-                        cout << "Player1 enter!" << endl;
-                        enrolledface("player1");
+                    if (Player1ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
+                        std::cout << "Player1 button clicked!" << std::endl;
                         p1 = true;
-                    }
-                    else if (Player1ButtonBounds.contains(mousePosition.x, mousePosition.y) && p1)
-                    {
-                        cout << "Player1 already entered!" << endl;
+                        p2 = false;
+                        p3 = false;
+                        modelPath = "player1.yml";
+                        enrolledface("player1", cap);
                     }
 
-                    // Player2 button 클릭 확인
                     sf::FloatRect Player2ButtonBounds = Player2ButtonSprite.getGlobalBounds();
-                    if (Player2ButtonBounds.contains(mousePosition.x, mousePosition.y) && p2 == false)
-                    {
-                        cout << "Player2 enter!" << endl;
-                        enrolledface("player2");
-
+                    if (Player2ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
+                        std::cout << "Player2 button clicked!" << std::endl;
+                        p1 = false;
                         p2 = true;
-                    }
-                    else if (Player2ButtonBounds.contains(mousePosition.x, mousePosition.y) && p2)
-                    {
-                        cout << "Player2 already entered!" << endl;
+                        p3 = false;
+                        modelPath = "player2.yml";
+                        enrolledface("player2", cap);
                     }
 
-                    // Player3 button 클릭 확인
                     sf::FloatRect Player3ButtonBounds = Player3ButtonSprite.getGlobalBounds();
-                    if (Player3ButtonBounds.contains(mousePosition.x, mousePosition.y) && p3 == false)
-                    {
-                        cout << "Player3 enter!" << endl;
-                        enrolledface("player3");
+                    if (Player3ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
+                        std::cout << "Player3 button clicked!" << std::endl;
+                        p1 = false;
+                        p2 = false;
                         p3 = true;
-                    }
-                    else if (Player3ButtonBounds.contains(mousePosition.x, mousePosition.y) && p3)
-                    {
-                        cout << "Player3 already entered!" << endl;
+                        modelPath = "player3.yml";
+                        enrolledface("player3", cap);
                     }
                 }
             }
