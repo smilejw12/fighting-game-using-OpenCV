@@ -24,11 +24,13 @@ using namespace std::filesystem;
 
 
 // 얼굴 인식을 위한 함수
-void recognizeFacesAndDrawRectangles(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model, sf::RenderWindow& window) {
+bool recognizeFacesAndDrawRectangles(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model, sf::RenderWindow& window, const string& model_name, sf::Font& font) {
     Mat gray;
     cvtColor(frame, gray, COLOR_BGR2GRAY);
     vector<Rect> faces;
     face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+
+    bool found = false;
 
     for (const auto& face : faces) {
         // 테두리 좌표 계산
@@ -51,19 +53,20 @@ void recognizeFacesAndDrawRectangles(Mat& frame, CascadeClassifier& face_cascade
         double confidence = 0;
         model->predict(faceROI, label, confidence);
 
-        string text = (label == 0 && confidence < 80) ? "Player1" : "Unknown";
+        string text = (label == 0 && confidence < 80) ? "player1" : "Unknown";
 
         // 텍스트 표시
-        sf::Font font;
-        if (!font.loadFromFile("arial.ttf")) {
-            return;
-        }
-
         sf::Text textObj(text, font, 20);
         textObj.setPosition(x, y - 20);
         textObj.setFillColor(sf::Color::Green);
         window.draw(textObj);
+
+        if (text == model_name) {
+            found = true;
+        }
     }
+
+    return found;
 }
 
 void convert4To3Channels(cv::Mat& frame) {
@@ -566,6 +569,7 @@ int main()
     bool initgameMode = false; // 게임 모드인지 여부
     bool faceenterMode = false;
     bool p1 = false, p2 = false, p3 = false;
+    bool player_check = false;
     int frame_count = 0;
     string modelPath = "";
 
@@ -624,6 +628,9 @@ int main()
                     // 시작 버튼 클릭 여부 초기화
                     startClicked = false;
                     faceEnterClicked = false;
+                    player.health = 10;
+                    ryu.Ryu_Score = 10;
+                    player_check = false;
 
                     // 윈도우를 윈도우 모드로 변경
                     window.create(sf::VideoMode(windowWidth, windowHeight), "Gaeshindong fire fist");
@@ -638,6 +645,7 @@ int main()
         }
 
         window.clear();
+        //게임부분
         if (startClicked)
         {
             cap >> frame;
@@ -656,55 +664,56 @@ int main()
 
                 // 5프레임마다 한 번씩 recognizeFaces 함수 호출
                 if (frame_count % 10 == 0) {
-                    recognizeFacesAndDrawRectangles(frame, face_cascade, model, window);
+                    player_check = recognizeFacesAndDrawRectangles(frame, face_cascade, model, window, "player1", font);
                 }
 
                 // 사람 감지 및 플레이어 바운딩 박스 업데이트
-                Rect boundingBox = detectPersonsAndDrawBoundingBox(frame, net, window);
-
-                
-                cout << boundingBox.x << ", " << boundingBox.y << ", " << boundingBox.width << ", " << boundingBox.height << endl;
-                sf::RectangleShape playerRect(sf::Vector2f(boundingBox.width, boundingBox.height));
-                playerRect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
-
-                player.updateBoundingBox(playerRect);
-                
                 ryu.updatePose();
                 ryu.displayPose(window);
                 ryu.displayFireball(window);
                 ryu.displayScore(window);
 
-                
-                player.displayHealth(window);
+                if (player_check)
+                {
+                    Rect boundingBox = detectPersonsAndDrawBoundingBox(frame, net, window);
 
-                cout << "Fireball Position: (" << ryu.fireballPos.x << ", " << ryu.fireballPos.y << ")" << endl;
-                cout << "Player Bounding Box: (" << player.getBoundingBox().left << ", " << player.getBoundingBox().top << ", " << player.getBoundingBox().width << ", " << player.getBoundingBox().height << ")" << endl;
 
-                // 파이어볼이 플레이어에게 닿았는지 확인
-                if (ryu.isFireActive && player.checkHit(ryu.fireballPos)) {
-                    cout << "Player hit! Remaining Health: " << player.health << endl;
-                    player.decreaseHealth();  // 체력 감소
-                    ryu.isFireActive = false;  // 파이어볼 비활성화
-                    ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
-                }
+                    cout << boundingBox.x << ", " << boundingBox.y << ", " << boundingBox.width << ", " << boundingBox.height << endl;
+                    sf::RectangleShape playerRect(sf::Vector2f(boundingBox.width, boundingBox.height));
+                    playerRect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
 
-                // 게임 루프 내에서 player와 ryu가 충돌했는지 확인
-                if (checkCollision(player.getBoundingBox(), ryu.boundingBox.getGlobalBounds())) {
-                    ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
-                    cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
+                    player.updateBoundingBox(playerRect);
+
+                    player.displayHealth(window);
+
+                    cout << "Fireball Position: (" << ryu.fireballPos.x << ", " << ryu.fireballPos.y << ")" << endl;
+                    cout << "Player Bounding Box: (" << player.getBoundingBox().left << ", " << player.getBoundingBox().top << ", " << player.getBoundingBox().width << ", " << player.getBoundingBox().height << ")" << endl;
+
+                    // 파이어볼이 플레이어에게 닿았는지 확인
+                    if (ryu.isFireActive && player.checkHit(ryu.fireballPos)) {
+                        cout << "Player hit! Remaining Health: " << player.health << endl;
+                        player.decreaseHealth();  // 체력 감소
+                        ryu.isFireActive = false;  // 파이어볼 비활성화
+                        ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
+                    }
+
+                    // 게임 루프 내에서 player와 ryu가 충돌했는지 확인
+                    if (checkCollision(player.getBoundingBox(), ryu.boundingBox.getGlobalBounds())) {
+                        ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
+                        cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
+                    }
+
+                    frame_count++;
+
+                    // 게임 종료 조건 체크
+                    if (player.health == 0 || ryu.Ryu_Score == 0) {
+                        std::cout << "Game Over" << std::endl;
+                        window.close(); // 게임 종료
+                    }
                 }
-                
-                frame_count++;
-                
-                // 게임 종료 조건 체크
-                if (player.health == 0 || ryu.Ryu_Score == 0) {
-                    std::cout << "Game Over" << std::endl;
-                    window.close(); // 게임 종료
-                }
-                
             }
         }
-
+        //얼굴 학습 부분
         else if (faceEnterClicked)
         {
             cap >> frame;
