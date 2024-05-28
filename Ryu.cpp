@@ -16,25 +16,31 @@ using namespace std;
 using namespace std::filesystem;
 
 // 얼굴 인식을 위한 함수
-void recognizeFaces(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model) {
+// 얼굴 인식을 위한 함수
+bool recognizeFaces(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model,string recognizedName) {
     Mat gray;
     cvtColor(frame, gray, COLOR_BGR2GRAY);
     vector<Rect> faces;
     face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
+    bool faceDetected = false;
+
     for (const auto& face : faces) {
+        faceDetected = true;  // 얼굴이 한 개 이상 인식되었다는 표시
         Mat faceROI = gray(face);
         int label = -1;
         double confidence = 0;
         model->predict(faceROI, label, confidence);
 
-        string text = (label == 0 && confidence < 80) ? "Player1" : "Unknown";
+        string text = (label == 0 && confidence < 80) ? recognizedName : "Unknown";
 
         Point pt1(face.x, face.y);
         Point pt2(face.x + face.width, face.y + face.height);
         rectangle(frame, pt1, pt2, Scalar(0, 255, 0), 2);
         putText(frame, text, Point(face.x, face.y - 5), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 255, 0), 2);
     }
+
+    return faceDetected;
 }
 
 // 사람 감지를 위한 함수
