@@ -16,7 +16,6 @@ using namespace std;
 using namespace std::filesystem;
 
 // 얼굴 인식을 위한 함수
-// 얼굴 인식을 위한 함수
 bool recognizeFaces(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model,string recognizedName) {
     Mat gray;
     cvtColor(frame, gray, COLOR_BGR2GRAY);
@@ -91,11 +90,15 @@ class Player {
 public:
     int health;  // Player의 체력
     Rect boundingBox;  // Player의 바운딩 박스
+    string name;
 
-    Player() : health(10), boundingBox(Point(0, 0), Size(0, 0)) {} // 초기 위치와 크기 설정
+    Player(string s) : health(10), boundingBox(Point(0, 0), Size(0, 0)), name(s+": ") {} // 초기 위치와 크기 설정
 
     void displayHealth(cv::Mat& img) {
-        cv::putText(img, "Player:" + std::to_string(health), cv::Point(1400, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
+        if(name=="Unknown: ")
+            cv::putText(img, "Unknown", cv::Point(1400, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
+        else
+            cv::putText(img, name + std::to_string(health), cv::Point(1400, 70), cv::FONT_HERSHEY_SIMPLEX, 2, cv::Scalar(0, 0, 255), 5);
     }
 
     // 파이어볼이 플레이어의 바운딩 박스에 들어왔는지 확인
@@ -109,8 +112,9 @@ public:
 
     // 체력 감소
     void decreaseHealth() {
-        if (health > 0) {
-            health--;
+        if (name != "Unknown: ")
+            if (health > 0) {
+                health--;
         }
     }
 };
@@ -208,7 +212,9 @@ int main() {
 
     // Haar 캐스케이드 및 LBPH 모델 파일 경로
     string face_cascade_path = "C:/Users/user/Desktop/build/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
-    string model_path = "C:/Users/user/Desktop/오픈소스전문프로젝트/player/김선우.yml";
+    string model1_path = "C:/Users/user/Desktop/오픈소스전문프로젝트/player/김선우.yml";
+    string model2_path = "C:/Users/user/Desktop/오픈소스전문프로젝트/player/신재원.yml";
+    string model3_path = "C:/Users/user/Desktop/오픈소스전문프로젝트/player/최예진.yml";
 
     // DNN 모델 파일 경로
     string cfg = "yolov4-tiny.cfg";
@@ -220,8 +226,12 @@ int main() {
         return -1;
     }
 
-    Ptr<LBPHFaceRecognizer> model = LBPHFaceRecognizer::create();
-    model->read(model_path);
+    Ptr<LBPHFaceRecognizer> model1 = LBPHFaceRecognizer::create();
+    model1->read(model1_path);
+    Ptr<LBPHFaceRecognizer> model2 = LBPHFaceRecognizer::create();
+    model2->read(model2_path);
+    Ptr<LBPHFaceRecognizer> model3 = LBPHFaceRecognizer::create();
+    model3->read(model3_path);
 
     Net net = readNetFromDarknet(cfg, weights);
     if (net.empty()) {
@@ -240,31 +250,26 @@ int main() {
 
     // Ryu 객체와 User 객체 생성
     Ryu ryu;
-    Player player;
+    Player* player = nullptr; // 현재 플레이어에 대한 포인터
+    Player* player1 = new Player("Player1"), * player2 = new Player("Player2"), * player3 = new Player("Player3"), * unknown = new Player("Unknown");
+    player =unknown;
     cv::Mat frame, flipped_frame;
     // 프레임 크기 조정 (성능 향상을 위해)
     //Mat resizedFrame;
-
+    int frame_count = 0;
     // 게임 루프
     while (true) {
         if (!cap.read(frame)) {
             std::cerr << "Error: No captured frame" << std::endl;
             break;
         }
+        frame_count++;
 
         cv::flip(frame, flipped_frame, 1);
         //resize(flipped_frame, resizedFrame, Size(1800, 1000)); // 성능 향상을 위해 크기 축소
         //
         // 프레임 크기 조정 (화면 출력용)
         resize(flipped_frame, flipped_frame, Size(1800, 1000));
-
-        // 얼굴 인식
-        recognizeFaces(flipped_frame, face_cascade, model);
-
-        // 사람 감지 및 플레이어 바운딩 박스 업데이트
-        Rect playerBox = detectPersons(flipped_frame, net);
-        cout << playerBox << endl;
-        player.updateBoundingBox(playerBox);
 
         // 포즈, 파이어볼, 점수 디스플레이
         ryu.updatePose();
@@ -273,30 +278,55 @@ int main() {
         ryu.displayScore(flipped_frame);
 
         // 플레이어 체력바 및 상태 업데이트
-        player.displayHealth(flipped_frame);
+        player->displayHealth(flipped_frame);
 
-        cout << "Fireball Position: " << ryu.fireballPos << endl;
-        cout << "Player Bounding Box: " << player.boundingBox << endl;
-
-        // 파이어볼이 플레이어에게 닿았는지 확인
-        if (ryu.isFireActive && player.checkHit(ryu.fireballPos)) {
-            cout << "player hit! Remaining Health: " << player.health << endl;
-            player.decreaseHealth();  // 체력 감소
-            ryu.isFireActive = false;  // 파이어볼 비활성화
-            ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
+        // 5프레임마다 한 번씩 recognizeFaces 함수 호출
+        if (frame_count % 10 == 0)
+        {
+            // 인식된 얼굴에 따라 player 포인터 업데이트
+            if (recognizeFaces(flipped_frame, face_cascade, model1, "Player1")) {
+                player = player1;
+            }
+            else if (recognizeFaces(flipped_frame, face_cascade, model2, "Player2")) {
+                player = player2;
+            }
+            else if (recognizeFaces(flipped_frame, face_cascade, model3, "Player3")) {
+                player = player3;
+            }
+            else {
+                // 결과 표시
+                player = unknown;
+                cv::imshow("Camera", flipped_frame);
+                continue;
+            }
         }
 
-        // 게임 루프 내에서
-        if (checkCollision(player.boundingBox, ryu.boundingBox)) {
-            ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
-            cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
+        // 사람 감지 및 플레이어 바운딩 박스 업데이트
+        if (player != nullptr && player != unknown) {
+            Rect playerBox = detectPersons(flipped_frame, net);
+            cout << playerBox << endl;
+            player->updateBoundingBox(playerBox);
+
+            // 파이어볼이 플레이어에게 닿았는지 확인
+            if (ryu.isFireActive && player->checkHit(ryu.fireballPos)) {
+                cout << "player hit! Remaining Health: " << player->health << endl;
+                player->decreaseHealth();  // 체력 감소
+                ryu.isFireActive = false;  // 파이어볼 비활성화
+                ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
+            }
+
+            // 게임 루프 내에서
+            if (checkCollision(player->boundingBox, ryu.boundingBox)) {
+                ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
+                //cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
+            }
         }
 
         // 결과 표시
         cv::imshow("Camera", flipped_frame);
 
         // 게임 종료 조건 체크
-        if (player.health == 0 || ryu.Ryu_Score == 0) {
+        if (player->health == 0 || ryu.Ryu_Score == 0) {
             std::cout << "Game Over" << std::endl;
             break;
         }
@@ -306,7 +336,10 @@ int main() {
             break;
         }
     }
-
+    delete unknown;
+    delete player1;
+    delete player2;
+    delete player3;
     // 자원 해제
     cap.release();
     cv::destroyAllWindows();
