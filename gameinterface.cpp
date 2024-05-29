@@ -24,13 +24,20 @@ using namespace std::filesystem;
 
 
 // 얼굴 인식을 위한 함수
-bool recognizeFacesAndDrawRectangles(Mat& frame, CascadeClassifier& face_cascade, Ptr<LBPHFaceRecognizer>& model, sf::RenderWindow& window, const string& model_name, sf::Font& font) {
+string recognizeFacesAndDrawRectangles(
+    Mat& frame,
+    CascadeClassifier& face_cascade,
+    std::map<std::string, Ptr<LBPHFaceRecognizer>>& playerModels,
+    sf::RenderWindow& window,
+    sf::Font& font) {
+
     Mat gray;
     cvtColor(frame, gray, COLOR_BGR2GRAY);
     vector<Rect> faces;
     face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
     bool found = false;
+    string detectedPlayer = "Unknown"; // 감지된 플레이어 이름 초기화
 
     for (const auto& face : faces) {
         // 테두리 좌표 계산
@@ -38,6 +45,22 @@ bool recognizeFacesAndDrawRectangles(Mat& frame, CascadeClassifier& face_cascade
         int y = face.y;
         int width = face.width;
         int height = face.height;
+
+        // 얼굴 영역에서 예측
+        Mat faceROI = gray(face);
+        int label = -1;
+        double confidence = 0;
+
+        // 각 모델을 순회하며 얼굴을 인식
+        for (const auto& playerModelPair : playerModels) {
+            playerModelPair.second->predict(faceROI, label, confidence);
+            if (label == 0 && confidence < 80) {
+                // 학습된 모델 중에서 얼굴을 찾은 경우 해당 플레이어 이름을 저장하고 반복문 종료
+                detectedPlayer = playerModelPair.first;
+                found = true;
+                break;
+            }
+        }
 
         // SFML의 RectangleShape로 테두리 그리기
         sf::RectangleShape border(sf::Vector2f(width, height));
@@ -47,27 +70,16 @@ bool recognizeFacesAndDrawRectangles(Mat& frame, CascadeClassifier& face_cascade
         border.setFillColor(sf::Color::Transparent); // 안을 비워줌으로써 테두리만 보이도록 함
         window.draw(border);
 
-        // 얼굴 영역에서 예측
-        Mat faceROI = gray(face);
-        int label = -1;
-        double confidence = 0;
-        model->predict(faceROI, label, confidence);
-
-        string text = (label == 0 && confidence < 80) ? "player1" : "Unknown";
-
         // 텍스트 표시
-        sf::Text textObj(text, font, 20);
+        sf::Text textObj(detectedPlayer, font, 20);
         textObj.setPosition(x, y - 20);
         textObj.setFillColor(sf::Color::Green);
         window.draw(textObj);
-
-        if (text == model_name) {
-            found = true;
-        }
     }
 
-    return found;
+    return detectedPlayer;
 }
+
 
 void convert4To3Channels(cv::Mat& frame) {
     if (frame.channels() == 4) {
@@ -133,8 +145,9 @@ class Player {
 public:
     int health;  // Player의 체력
     sf::RectangleShape boundingBox;  // Player의 바운딩 박스
+    string name;
 
-    Player() : health(10) {
+    Player(string s) : health(10), name(s + ": "){
         // 플레이어의 바운딩 박스 설정
         boundingBox.setSize(sf::Vector2f(50, 100)); // 예시 크기 설정 (가로 50, 세로 100)
         boundingBox.setFillColor(sf::Color::Transparent); // 투명한 색상
@@ -148,9 +161,9 @@ public:
             std::cerr << "Failed to load font!" << std::endl;
             return;
         }
-        sf::Text text("Player: " + std::to_string(health), font, 30);
+        sf::Text text(name + std::to_string(health), font, 50);
         text.setPosition(1400, 70);
-        text.setFillColor(sf::Color::Red);
+        text.setFillColor(sf::Color::Blue);
         window.draw(text);
     }
 
@@ -225,8 +238,8 @@ public:
     sf::RectangleShape boundingBox; // Ryu의 바운딩 박스
 
     Ryu() : poseIndex(0), Ryu_Score(10), isFireActive(false),
-        fireballPos1(sf::Vector2f(350, 400)), fireballPos2(sf::Vector2f(550, 400)),
-        fireballPos3(sf::Vector2f(750, 400))
+        fireballPos1(sf::Vector2f(450, 350)), fireballPos2(sf::Vector2f(600, 350)),
+        fireballPos3(sf::Vector2f(750, 350))
     {
         sf::Texture pose1Texture = loadTextureAndResize("ryu_stand_motion.png", 390, 800);
         sf::Texture pose2Texture = loadTextureAndResize("ryu_attack_motion.png", 500, 800);
@@ -272,7 +285,7 @@ public:
     void displayFireball(sf::RenderWindow& window) {
         if (isFireActive) {
             sf::CircleShape circle(50);
-            circle.setFillColor(sf::Color(0, 0, 255));
+            circle.setFillColor(sf::Color::Red);
             circle.setPosition(fireballPos);
             window.draw(circle);
             fireballPos.x += 80; // 파이어볼의 이동 속도
@@ -292,7 +305,7 @@ public:
         }
         sf::Text text("Ryu:" + std::to_string(Ryu_Score), font, 50);
         text.setPosition(50, 50);
-        text.setFillColor(sf::Color(0, 0, 255));
+        text.setFillColor(sf::Color::Red);
         window.draw(text);
     }
 
@@ -300,8 +313,6 @@ public:
         return boundingBox.getGlobalBounds();
     }
 };
-
-
 
 // 웹캠으로부터 얼굴을 캡처하여 저장하는 함수
 void captureFaces(const string& cascadePath, const string& outputFolder, VideoCapture& cap) {
@@ -384,11 +395,11 @@ void enrolledface(string modelName, VideoCapture& cap, sf::RenderWindow& window)
     window.display(); // 화면을 갱신
 
     //model
-    string cascadePath = "C:/opencv/etc/haarcascades/haarcascade_frontalface_alt.xml";
+    string cascadePath = "C:/opencv/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
     //model 저장 주소
     string outputFolder = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/pictures for readme";
 
-    string modelPath = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/" + modelName + ".yml";
+    string modelPath = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/model/" + modelName + ".yml";
 
     create_directories(outputFolder);
 
@@ -419,8 +430,37 @@ int main()
     // 시드 초기화
     srand(time(0));
 
+    string modelName = "";
+    //자기 주소에 맞게 변경하기
     string face_cascade_path = "C:/opencv/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
-    string model_path = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/player1.yml";
+    string model1_path = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/model/player1.yml";
+    string model2_path = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/model/player2.yml";
+    string model3_path = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/model/player3.yml";
+
+    // 플레이어 모델을 저장할 맵
+    std::map<std::string, Ptr<LBPHFaceRecognizer>> playerModels;
+
+    // 파일이 있는 경우 플레이어 모델 읽기
+    // 플레이어 1
+    if (std::filesystem::exists(model1_path)) {
+        Ptr<LBPHFaceRecognizer> playerModel1 = LBPHFaceRecognizer::create();
+        playerModel1->read(model1_path);
+        playerModels["player1"] = playerModel1;
+    }
+
+    // 플레이어 2
+    if (std::filesystem::exists(model2_path)) {
+        Ptr<LBPHFaceRecognizer> playerModel2 = LBPHFaceRecognizer::create();
+        playerModel2->read(model2_path);
+        playerModels["player2"] = playerModel2;
+    }
+
+    // 플레이어 3
+    if (std::filesystem::exists(model3_path)) {
+        Ptr<LBPHFaceRecognizer> playerModel3 = LBPHFaceRecognizer::create();
+        playerModel3->read(model3_path);
+        playerModels["player3"] = playerModel3;
+    }
 
     // DNN 모델 파일 경로
     string cfg = "yolov4-tiny.cfg";
@@ -431,9 +471,6 @@ int main()
         cerr << "Error loading face cascade\n";
         return -1;
     }
-
-    Ptr<LBPHFaceRecognizer> model = LBPHFaceRecognizer::create();
-    model->read(model_path);
 
     Net net = readNetFromDarknet(cfg, weights);
     if (net.empty()) {
@@ -479,9 +516,6 @@ int main()
     cv::Mat frame;
     sf::Texture cameraTexture;
     sf::Sprite cameraSprite;
-
-
-
 
     // 배경 이미지 로드
     sf::Texture backgroundTexture;
@@ -571,11 +605,11 @@ int main()
     bool p1 = false, p2 = false, p3 = false;
     bool player_check = false;
     int frame_count = 0;
-    string modelPath = "";
 
     Ryu ryu;
-    Player player;
-
+    Player* player = nullptr;
+    Player* player1 = new Player("Player1"), * player2 = new Player("Player2"), * player3 = new Player("Player3"), * unknown = new Player("Unknown");
+    player = unknown;
 
     // 폰트 로드
     sf::Font font;
@@ -628,10 +662,11 @@ int main()
                     // 시작 버튼 클릭 여부 초기화
                     startClicked = false;
                     faceEnterClicked = false;
-                    player.health = 10;
-                    ryu.Ryu_Score = 10;
                     player_check = false;
-
+                    ryu.Ryu_Score = 10;
+                    player1->health = 10;
+                    player2->health = 10;
+                    player3->health = 10;
                     // 윈도우를 윈도우 모드로 변경
                     window.create(sf::VideoMode(windowWidth, windowHeight), "Gaeshindong fire fist");
                     window.setMouseCursorVisible(true);
@@ -662,10 +697,6 @@ int main()
 
                 window.draw(cameraSprite);
 
-                // 5프레임마다 한 번씩 recognizeFaces 함수 호출
-                if (frame_count % 10 == 0) {
-                    player_check = recognizeFacesAndDrawRectangles(frame, face_cascade, model, window, "player1", font);
-                }
 
                 // 사람 감지 및 플레이어 바운딩 박스 업데이트
                 ryu.updatePose();
@@ -673,44 +704,50 @@ int main()
                 ryu.displayFireball(window);
                 ryu.displayScore(window);
 
-                if (player_check)
-                {
+                
+                // 10프레임마다 한 번씩 recognizeFaces 함수 호출
+                if (frame_count % 10 == 0) {
+                    string detectedPlayer = recognizeFacesAndDrawRectangles(frame, face_cascade, playerModels, window, font);
+                    if (detectedPlayer == "player1")
+                        player = player1;
+                    else if (detectedPlayer == "player2")
+                        player = player2;
+                    else if (detectedPlayer == "player3")
+                        player = player3;
+                    else
+                        player = unknown;
+                }
+                
+                if (player != nullptr && player != unknown) {
                     Rect boundingBox = detectPersonsAndDrawBoundingBox(frame, net, window);
 
-
-                    cout << boundingBox.x << ", " << boundingBox.y << ", " << boundingBox.width << ", " << boundingBox.height << endl;
+                    // 플레이어 업데이트
                     sf::RectangleShape playerRect(sf::Vector2f(boundingBox.width, boundingBox.height));
                     playerRect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
-
-                    player.updateBoundingBox(playerRect);
-
-                    player.displayHealth(window);
-
-                    cout << "Fireball Position: (" << ryu.fireballPos.x << ", " << ryu.fireballPos.y << ")" << endl;
-                    cout << "Player Bounding Box: (" << player.getBoundingBox().left << ", " << player.getBoundingBox().top << ", " << player.getBoundingBox().width << ", " << player.getBoundingBox().height << ")" << endl;
+                    player->updateBoundingBox(playerRect);
+                    player->displayHealth(window);
 
                     // 파이어볼이 플레이어에게 닿았는지 확인
-                    if (ryu.isFireActive && player.checkHit(ryu.fireballPos)) {
-                        cout << "Player hit! Remaining Health: " << player.health << endl;
-                        player.decreaseHealth();  // 체력 감소
+                    if (ryu.isFireActive && player->checkHit(ryu.fireballPos)) {
+                        cout << "Player hit! Remaining Health: " << player->health << endl;
+                        player->decreaseHealth();  // 체력 감소
                         ryu.isFireActive = false;  // 파이어볼 비활성화
                         ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
                     }
 
                     // 게임 루프 내에서 player와 ryu가 충돌했는지 확인
-                    if (checkCollision(player.getBoundingBox(), ryu.boundingBox.getGlobalBounds())) {
+                    if (checkCollision(player->getBoundingBox(), ryu.boundingBox.getGlobalBounds())) {
                         ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
                         cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
                     }
-
-                    frame_count++;
-
-                    // 게임 종료 조건 체크
-                    if (player.health == 0 || ryu.Ryu_Score == 0) {
-                        std::cout << "Game Over" << std::endl;
-                        window.close(); // 게임 종료
-                    }
                 }
+                
+                if (player->health == 0 || ryu.Ryu_Score == 0) {
+                    std::cout << "Game Over" << std::endl;
+                    startClicked = false;
+                }
+
+                frame_count++;
             }
         }
         //얼굴 학습 부분
@@ -743,7 +780,9 @@ int main()
                         p1 = true;
                         p2 = false;
                         p3 = false;
-                        modelPath = "player1.yml";
+                        Ptr<LBPHFaceRecognizer> playerModel1 = LBPHFaceRecognizer::create();
+                        playerModel1->read(model1_path);
+                        playerModels["player1"] = playerModel1;
                         enrolledface("player1", cap, window);
                         
                     }
@@ -754,19 +793,22 @@ int main()
                         p1 = false;
                         p2 = true;
                         p3 = false;
-                        modelPath = "player2.yml";
                         enrolledface("player2", cap, window);
+                        Ptr<LBPHFaceRecognizer> playerModel2 = LBPHFaceRecognizer::create();
+                        playerModel2->read(model2_path);
+                        playerModels["player2"] = playerModel2;
                         
                     }
 
                     sf::FloatRect Player3ButtonBounds = Player3ButtonSprite.getGlobalBounds();
                     if (Player3ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
-                        std::cout << "Player3 button clicked!" << std::endl;
                         p1 = false;
                         p2 = false;
                         p3 = true;
-                        modelPath = "player3.yml";
                         enrolledface("player3", cap, window);
+                        Ptr<LBPHFaceRecognizer> playerModel3 = LBPHFaceRecognizer::create();
+                        playerModel3->read(model3_path);
+                        playerModels["player3"] = playerModel3;
                         
                     }
                     
@@ -784,5 +826,11 @@ int main()
         window.display();
     }
 
+    delete unknown;
+    delete player1;
+    delete player2;
+    delete player3;
+    // 자원 해제
+    cap.release();
     return 0;
 }
