@@ -36,41 +36,35 @@ string recognizeFacesAndDrawRectangles(
     vector<Rect> faces;
     face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
-    bool found = false;
-    string detectedPlayer = "Unknown"; // 감지된 플레이어 이름 초기화
+    string detectedPlayer = "Unknown";
+    double highestConfidence = 100.0; // confidence 필요시 수정
 
     for (const auto& face : faces) {
-        // 테두리 좌표 계산
         int x = face.x;
         int y = face.y;
         int width = face.width;
         int height = face.height;
 
-        // 얼굴 영역에서 예측
         Mat faceROI = gray(face);
-        int label = -1;
-        double confidence = 0;
 
-        // 각 모델을 순회하며 얼굴을 인식
         for (const auto& playerModelPair : playerModels) {
+            int label = -1;
+            double confidence = 0.0;
             playerModelPair.second->predict(faceROI, label, confidence);
-            if (label == 0 && confidence < 80) {
-                // 학습된 모델 중에서 얼굴을 찾은 경우 해당 플레이어 이름을 저장하고 반복문 종료
+
+            if (label == 0 && confidence < highestConfidence) {
+                highestConfidence = confidence;
                 detectedPlayer = playerModelPair.first;
-                found = true;
-                break;
             }
         }
 
-        // SFML의 RectangleShape로 테두리 그리기
         sf::RectangleShape border(sf::Vector2f(width, height));
         border.setPosition(x, y);
         border.setOutlineThickness(2);
         border.setOutlineColor(sf::Color::Green);
-        border.setFillColor(sf::Color::Transparent); // 안을 비워줌으로써 테두리만 보이도록 함
+        border.setFillColor(sf::Color::Transparent);
         window.draw(border);
 
-        // 텍스트 표시
         sf::Text textObj(detectedPlayer, font, 20);
         textObj.setPosition(x, y - 20);
         textObj.setFillColor(sf::Color::Green);
