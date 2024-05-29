@@ -288,11 +288,11 @@ public:
             circle.setFillColor(sf::Color::Red);
             circle.setPosition(fireballPos);
             window.draw(circle);
-            fireballPos.x += 80; // 파이어볼의 이동 속도
+            fireballPos.x += 40; // 파이어볼의 이동 속도
 
             // 화면을 벗어났는지 확인하고 초기 위치로 리셋, 활성화 상태 변경
             if (fireballPos.x > window.getSize().x) {
-                fireballPos.x = 600; // 초기 위치로 리셋
+                fireballPos.x = 450; // 초기 위치로 리셋
                 isFireActive = false; // 파이어볼 비활성화
             }
         }
@@ -605,7 +605,7 @@ int main()
     bool p1 = false, p2 = false, p3 = false;
     bool player_check = false;
     int frame_count = 0;
-
+    int attack_chance = 100;
     Ryu ryu;
     Player* player = nullptr;
     Player* player1 = new Player("Player1"), * player2 = new Player("Player2"), * player3 = new Player("Player3"), * unknown = new Player("Unknown");
@@ -662,7 +662,6 @@ int main()
                     // 시작 버튼 클릭 여부 초기화
                     startClicked = false;
                     faceEnterClicked = false;
-                    player_check = false;
                     ryu.Ryu_Score = 10;
                     player1->health = 10;
                     player2->health = 10;
@@ -703,7 +702,7 @@ int main()
                 ryu.displayPose(window);
                 ryu.displayFireball(window);
                 ryu.displayScore(window);
-
+                
                 
                 // 10프레임마다 한 번씩 recognizeFaces 함수 호출
                 if (frame_count % 10 == 0) {
@@ -718,6 +717,7 @@ int main()
                         player = unknown;
                 }
                 
+                attack_chance++;
                 if (player != nullptr && player != unknown) {
                     Rect boundingBox = detectPersonsAndDrawBoundingBox(frame, net, window);
 
@@ -732,19 +732,27 @@ int main()
                         cout << "Player hit! Remaining Health: " << player->health << endl;
                         player->decreaseHealth();  // 체력 감소
                         ryu.isFireActive = false;  // 파이어볼 비활성화
-                        ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
+                        ryu.fireballPos.x = 450;  // 파이어볼 위치 초기화
                     }
 
                     // 게임 루프 내에서 player와 ryu가 충돌했는지 확인
-                    if (checkCollision(player->getBoundingBox(), ryu.boundingBox.getGlobalBounds())) {
-                        ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
-                        cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
+                    if (checkCollision(player->getBoundingBox(), ryu.boundingBox.getGlobalBounds()))
+                    {
+                        if (attack_chance >= 15)
+                        {
+                            ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
+                            cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
+                            attack_chance = 0;
+                        }
+
                     }
                 }
                 
                 if (player->health == 0 || ryu.Ryu_Score == 0) {
                     std::cout << "Game Over" << std::endl;
                     startClicked = false;
+                    faceEnterClicked = false; // 게임 모드 종료
+                    initgameMode = false; // 게임 모드 초기화
                 }
 
                 frame_count++;
