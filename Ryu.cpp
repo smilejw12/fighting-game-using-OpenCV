@@ -257,6 +257,7 @@ int main() {
     // 프레임 크기 조정 (성능 향상을 위해)
     //Mat resizedFrame;
     int frame_count = 0;
+    int attack_chance=100;
     // 게임 루프
     while (true) {
         if (!cap.read(frame)) {
@@ -264,6 +265,7 @@ int main() {
             break;
         }
         frame_count++;
+        attack_chance++;
 
         cv::flip(frame, flipped_frame, 1);
         //resize(flipped_frame, resizedFrame, Size(1800, 1000)); // 성능 향상을 위해 크기 축소
@@ -314,11 +316,13 @@ int main() {
                 ryu.isFireActive = false;  // 파이어볼 비활성화
                 ryu.fireballPos.x = 600;  // 파이어볼 위치 초기화
             }
-
-            // 게임 루프 내에서
-            if (checkCollision(player->boundingBox, ryu.boundingBox)) {
+            if(attack_chance>=100)
+            {
+                // 게임 루프 내에서
+                if (checkCollision(player->boundingBox, ryu.boundingBox)) {
                 ryu.Ryu_Score -= 1; // Ryu의 체력을 1 감소
                 //cout << "Ryu hit! Remaining Health: " << ryu.Ryu_Score << endl;
+                }
             }
         }
 
