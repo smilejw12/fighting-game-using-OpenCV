@@ -140,7 +140,7 @@ public:
     sf::RectangleShape boundingBox;  // Player의 바운딩 박스
     string name;
 
-    Player(string s) : health(10), name(s + ": "){
+    Player(string s) : health(10), name(s + ": ") {
         // 플레이어의 바운딩 박스 설정
         boundingBox.setSize(sf::Vector2f(50, 100)); // 예시 크기 설정 (가로 50, 세로 100)
         boundingBox.setFillColor(sf::Color::Transparent); // 투명한 색상
@@ -371,8 +371,8 @@ void trainAndSaveModel(const string& dataFolder, const string& modelPath) {
     cout << "모델의 이름을 다음과 같이 저장합니다 :  " << modelPath << endl;
 }
 
-void enrolledface(string modelName, VideoCapture& cap, sf::RenderWindow& window) {
-    
+void enrolledface(string modelName, string cascadePath, VideoCapture& cap, sf::RenderWindow& window) {
+
 
     //등록 중 이미지
     sf::Texture Capture_camera;
@@ -387,8 +387,6 @@ void enrolledface(string modelName, VideoCapture& cap, sf::RenderWindow& window)
     window.draw(CaptureSprite);
     window.display(); // 화면을 갱신
 
-    //model
-    string cascadePath = "C:/opencv/install/etc/haarcascades/haarcascade_frontalface_alt.xml";
     //model 저장 주소
     string outputFolder = "C:/Users/choi/opensource/fighting-game-using-OpenCV/gameinterface/pictures for readme";
 
@@ -407,15 +405,15 @@ void enrolledface(string modelName, VideoCapture& cap, sf::RenderWindow& window)
     trainAndSaveModel(outputFolder, modelPath);
 
     cout << "등록 완료" << endl;
-    
+
 }
 
 
 int main()
 {
-    #ifdef _WIN32
-        ShowWindow(GetConsoleWindow(), SW_HIDE); // 콘솔창 숨기기
-    #endif
+#ifdef _WIN32
+    ShowWindow(GetConsoleWindow(), SW_HIDE); // 콘솔창 숨기기
+#endif
 
     const int windowWidth = 1800;
     const int windowHeight = 1000;
@@ -553,7 +551,7 @@ int main()
 
     sf::Sprite Player1ButtonSprite(Player1ButtonTexture);
     Player1ButtonSprite.setScale(0.7f, 0.7f);
-    Player1ButtonSprite.setPosition(150, 800); 
+    Player1ButtonSprite.setPosition(150, 800);
 
     // Player2 등록버튼
     sf::Texture Player2ButtonTexture;
@@ -564,7 +562,7 @@ int main()
 
     sf::Sprite Player2ButtonSprite(Player2ButtonTexture);
     Player2ButtonSprite.setScale(0.7f, 0.7f);
-    Player2ButtonSprite.setPosition(850, 800); 
+    Player2ButtonSprite.setPosition(850, 800);
 
     // Player3 등록버튼
     sf::Texture Player3ButtonTexture;
@@ -575,7 +573,7 @@ int main()
 
     sf::Sprite Player3ButtonSprite(Player3ButtonTexture);
     Player3ButtonSprite.setScale(0.7f, 0.7f);
-    Player3ButtonSprite.setPosition(1500, 800); 
+    Player3ButtonSprite.setPosition(1500, 800);
 
     //등록 완료 이미지
     sf::Texture CompleteTexture;
@@ -696,8 +694,8 @@ int main()
                 ryu.displayPose(window);
                 ryu.displayFireball(window);
                 ryu.displayScore(window);
-                
-                
+
+
                 // 10프레임마다 한 번씩 recognizeFaces 함수 호출
                 if (frame_count % 10 == 0) {
                     string detectedPlayer = recognizeFacesAndDrawRectangles(frame, face_cascade, playerModels, window, font);
@@ -710,7 +708,7 @@ int main()
                     else
                         player = unknown;
                 }
-                
+
                 attack_chance++;
                 if (player != nullptr && player != unknown) {
                     Rect boundingBox = detectPersonsAndDrawBoundingBox(frame, net, window);
@@ -741,7 +739,7 @@ int main()
 
                     }
                 }
-                
+
                 if (player->health == 0 || ryu.Ryu_Score == 0) {
                     std::cout << "Game Over" << std::endl;
                     startClicked = false;
@@ -765,7 +763,7 @@ int main()
             cap >> frame;
 
             if (!frame.empty()) {
-                
+
                 // OpenCV Mat을 SFML Texture에 복사
                 cv::flip(frame, frame, 1);
                 cv::cvtColor(frame, frame, cv::COLOR_BGR2RGBA);
@@ -774,7 +772,7 @@ int main()
                 faceenterMode = true;
                 // Texture를 Sprite에 설정하여 SFML 창에 표시
                 cameraSprite.setTexture(cameraTexture);
-                
+
                 window.draw(cameraSprite);
                 window.draw(Player1ButtonSprite);
                 window.draw(Player2ButtonSprite);
@@ -791,31 +789,31 @@ int main()
                         Ptr<LBPHFaceRecognizer> playerModel1 = LBPHFaceRecognizer::create();
                         playerModel1->read(model1_path);
                         playerModels["player1"] = playerModel1;
-                        enrolledface("player1", cap, window);
-                        
+                        enrolledface("player1", face_cascade_path, cap, window);
+
                     }
 
                     sf::FloatRect Player2ButtonBounds = Player2ButtonSprite.getGlobalBounds();
                     if (Player2ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
                         std::cout << "Player2 button clicked!" << std::endl;
                         p2 = true;
-                        enrolledface("player2", cap, window);
+                        enrolledface("player2", face_cascade_path, cap, window);
                         Ptr<LBPHFaceRecognizer> playerModel2 = LBPHFaceRecognizer::create();
                         playerModel2->read(model2_path);
                         playerModels["player2"] = playerModel2;
-                        
+
                     }
 
                     sf::FloatRect Player3ButtonBounds = Player3ButtonSprite.getGlobalBounds();
                     if (Player3ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
                         p3 = true;
-                        enrolledface("player3", cap, window);
+                        enrolledface("player3", face_cascade_path, cap, window);
                         Ptr<LBPHFaceRecognizer> playerModel3 = LBPHFaceRecognizer::create();
                         playerModel3->read(model3_path);
                         playerModels["player3"] = playerModel3;
-                        
+
                     }
-                    
+
                 }
                 if (drawCompleteSprite) {
                     window.draw(CompleteSprite);
