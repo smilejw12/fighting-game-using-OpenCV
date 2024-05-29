@@ -1,0 +1,52 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\choi\\opensource\\fighting-game-using-OpenCV\\gameinterface\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{AF2E0E9D-01CD-4C5C-B387-FF0DD9D0EBB8}|gameinterface\\gameinterface.vcxproj|C:\\Users\\choi\\opensource\\fighting-game-using-OpenCV\\gameinterface\\gameinterface\\gameinterface.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{AF2E0E9D-01CD-4C5C-B387-FF0DD9D0EBB8}|gameinterface\\gameinterface.vcxproj|solutionrelative:gameinterface\\gameinterface.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF2E0E9D-01CD-4C5C-B387-FF0DD9D0EBB8}|gameinterface\\gameinterface.vcxproj|C:\\Users\\choi\\opensource\\fighting-game-using-OpenCV\\gameinterface\\gameinterface\\sfml-window-d-2.dll||{177559E0-D141-11D0-92DF-00A0C9138C45}",
+      "RelativeMoniker": "D:0:0:{AF2E0E9D-01CD-4C5C-B387-FF0DD9D0EBB8}|gameinterface\\gameinterface.vcxproj|solutionrelative:gameinterface\\sfml-window-d-2.dll||{177559E0-D141-11D0-92DF-00A0C9138C45}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "sfml-window-d-2.dll",
+              "DocumentMoniker": "C:\\Users\\choi\\opensource\\fighting-game-using-OpenCV\\gameinterface\\gameinterface\\sfml-window-d-2.dll",
+              "RelativeDocumentMoniker": "gameinterface\\sfml-window-d-2.dll",
+              "ToolTip": "C:\\Users\\choi\\opensource\\fighting-game-using-OpenCV\\gameinterface\\gameinterface\\sfml-window-d-2.dll",
+              "RelativeToolTip": "gameinterface\\sfml-window-d-2.dll",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001697|",
+              "WhenOpened": "2024-04-09T10:33:19.771Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "gameinterface.cpp",
+              "DocumentMoniker": "C:\\Users\\choi\\opensource\\fighting-game-using-OpenCV\\gameinterface\\gameinterface\\gameinterface.cpp",
+              "RelativeDocumentMoniker": "gameinterface\\gameinterface.cpp",
+              "ToolTip": "C:\\Users\\choi\\opensource\\fighting-game-using-OpenCV\\gameinterface\\gameinterface\\gameinterface.cpp",
+              "RelativeToolTip": "gameinterface\\gameinterface.cpp",
+              "ViewState": "AQIAAB4AAAAAAAAAAAAAACsAAABBAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2024-04-09T10:25:17.626Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
