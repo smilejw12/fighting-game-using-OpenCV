@@ -37,7 +37,7 @@ string recognizeFacesAndDrawRectangles(
     face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
     string detectedPlayer = "Unknown";
-    double highestConfidence = 100.0; // confidence 필요시 수정
+    double highestConfidence = 100.0; // 높은 confidence가 낮은 수치를 의미하므로 초기값을 높게 설정
 
     for (const auto& face : faces) {
         int x = face.x;
@@ -73,7 +73,6 @@ string recognizeFacesAndDrawRectangles(
 
     return detectedPlayer;
 }
-
 
 void convert4To3Channels(cv::Mat& frame) {
     if (frame.channels() == 4) {
@@ -337,7 +336,7 @@ void captureFaces(const string& cascadePath, const string& outputFolder, VideoCa
             }
         }
 
-        if (img_counter >= 100) break; // 100개의 얼굴 종료
+        if (img_counter >= 50) break; // 50개일 때 종료
     }
 
 }
@@ -602,7 +601,7 @@ int main()
     int attack_chance = 100;
     Ryu ryu;
     Player* player = nullptr;
-    Player* player1 = new Player("Player1"), * player2 = new Player("Player2"), * player3 = new Player("Player3"), * unknown = new Player("Unknown");
+    Player* player1 = new Player("player1"), * player2 = new Player("player2"), * player3 = new Player("player3"), * unknown = new Player("Unknown");
     player = unknown;
 
     // 폰트 로드
@@ -747,6 +746,12 @@ int main()
                     startClicked = false;
                     faceEnterClicked = false; // 게임 모드 종료
                     initgameMode = false; // 게임 모드 초기화
+                    player1->health = 10;
+                    player2->health = 10;
+                    player3->health = 10;
+                    ryu.Ryu_Score = 10;
+                    window.create(sf::VideoMode(windowWidth, windowHeight), "Gaeshindong fire fist");
+                    window.setMouseCursorVisible(true);
                 }
 
                 frame_count++;
@@ -772,7 +777,8 @@ int main()
                 window.draw(Player1ButtonSprite);
                 window.draw(Player2ButtonSprite);
                 window.draw(Player3ButtonSprite);
-                if (p1 || p2 || p3) window.draw(CompleteSprite);
+                // 변수 초기화
+                bool drawCompleteSprite = p1 || p2 || p3;
 
                 if (event.type == sf::Event::MouseButtonPressed) {
                     sf::FloatRect Player1ButtonBounds = Player1ButtonSprite.getGlobalBounds();
@@ -807,13 +813,17 @@ int main()
                         p1 = false;
                         p2 = false;
                         p3 = true;
+                        /*
                         enrolledface("player3", cap, window);
                         Ptr<LBPHFaceRecognizer> playerModel3 = LBPHFaceRecognizer::create();
                         playerModel3->read(model3_path);
-                        playerModels["player3"] = playerModel3;
+                        playerModels["player3"] = playerModel3;*/
                         
                     }
                     
+                }
+                if (drawCompleteSprite) {
+                    window.draw(CompleteSprite);
                 }
             }
         }
