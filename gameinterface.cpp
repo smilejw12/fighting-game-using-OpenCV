@@ -659,6 +659,7 @@ int main()
                     player1->health = 10;
                     player2->health = 10;
                     player3->health = 10;
+                    p1 = false, p2 = false, p3 = false;
                     // 윈도우를 윈도우 모드로 변경
                     window.create(sf::VideoMode(windowWidth, windowHeight), "Gaeshindong fire fist");
                     window.setMouseCursorVisible(true);
@@ -750,6 +751,7 @@ int main()
                     player2->health = 10;
                     player3->health = 10;
                     ryu.Ryu_Score = 10;
+                    p1 = false, p2 = false, p3 = false;
                     window.create(sf::VideoMode(windowWidth, windowHeight), "Gaeshindong fire fist");
                     window.setMouseCursorVisible(true);
                 }
@@ -786,8 +788,6 @@ int main()
                     if (Player1ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
                         std::cout << "Player1 button clicked!" << std::endl;
                         p1 = true;
-                        p2 = false;
-                        p3 = false;
                         Ptr<LBPHFaceRecognizer> playerModel1 = LBPHFaceRecognizer::create();
                         playerModel1->read(model1_path);
                         playerModels["player1"] = playerModel1;
@@ -798,9 +798,7 @@ int main()
                     sf::FloatRect Player2ButtonBounds = Player2ButtonSprite.getGlobalBounds();
                     if (Player2ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
                         std::cout << "Player2 button clicked!" << std::endl;
-                        p1 = false;
                         p2 = true;
-                        p3 = false;
                         enrolledface("player2", cap, window);
                         Ptr<LBPHFaceRecognizer> playerModel2 = LBPHFaceRecognizer::create();
                         playerModel2->read(model2_path);
@@ -810,14 +808,11 @@ int main()
 
                     sf::FloatRect Player3ButtonBounds = Player3ButtonSprite.getGlobalBounds();
                     if (Player3ButtonBounds.contains(mousePosition.x, mousePosition.y)) {
-                        p1 = false;
-                        p2 = false;
                         p3 = true;
-                        /*
                         enrolledface("player3", cap, window);
                         Ptr<LBPHFaceRecognizer> playerModel3 = LBPHFaceRecognizer::create();
                         playerModel3->read(model3_path);
-                        playerModels["player3"] = playerModel3;*/
+                        playerModels["player3"] = playerModel3;
                         
                     }
                     
