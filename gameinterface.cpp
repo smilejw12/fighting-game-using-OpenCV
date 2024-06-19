@@ -37,7 +37,7 @@ string recognizeFacesAndDrawRectangles(
     face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
     string detectedPlayer = "Unknown";
-    double highestConfidence = 100.0; // 높은 confidence가 낮은 수치를 의미하므로 초기값을 높게 설정
+    double highestConfidence = 70.0; // 높은 confidence가 낮은 수치를 의미하므로 초기값을 높게 설정
 
     for (const auto& face : faces) {
         int x = face.x;
@@ -660,7 +660,9 @@ int main()
                     p1 = false, p2 = false, p3 = false;
                     // 윈도우를 윈도우 모드로 변경
                     window.create(sf::VideoMode(windowWidth, windowHeight), "Gaeshindong fire fist");
+                    window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
                     window.setMouseCursorVisible(true);
+                    
                 }
                 else
                 {
